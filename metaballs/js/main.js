@@ -435,7 +435,7 @@ window.onunload = function()
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	gl.deleteBuffer(VBO);
 
-	for (var i in Assets) Assets[u].Destroy();
+	for (var i in Assets) Assets[i].Destroy();
 
 	gl.deleteFramebuffer(FBO);
 	gl.deleteTexture(FrameTexture);
