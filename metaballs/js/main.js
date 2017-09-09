@@ -12,7 +12,7 @@ var BallSpeed = 0.1;
 var ui, style, filter;
 
 var Balls = [];
-var FiltersList = [ "25Percent", "50Percent", "75Percent", "SolarEclipse", "InvertedEclipse", "Arushi", "GreenLines", "Murica", "Topographic", "Rainbow"];
+var FiltersList = [ "25Percent", "50Percent", "75Percent", "SolarEclipse", "InvertedEclipse", "Arushi", "GreenLines", "Murica", "Topographic", "Rainbow", "ThermalCamera"];
 
 var Assets = {};
 
@@ -435,7 +435,7 @@ window.onunload = function()
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	gl.deleteBuffer(VBO);
 
-	for (var i in Assets) Assets[i].Destroy();
+	for (var i in Assets) Assets[u].Destroy();
 
 	gl.deleteFramebuffer(FBO);
 	gl.deleteTexture(FrameTexture);
