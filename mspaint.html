@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<title>Code in MS Paint</title>
+
+		<script src = "scripts/paintcode.js"></script>
+
+	</head>
+
+	<body>
+
+		<h3>Code in MS Paint</h3>
+
+		<p><a href = "https://www.reddit.com/r/ProgrammerHumor/comments/5zcg1z/coding_in_ms_paint/">Inspired by this post</a></p>
+
+		<p>Takes text input and turns it into decimal color values, correlating with the text's ASCII codes. You can input them in a 1px height (n)px width MS Paint file from left to right, then save as a 24-bit Bitmap. Open it with a text editor like Notepad and you'll see your text in the file. You can enter the colors on a width more than 1px, but be aware that you have to enter them left to right, bottom to top, and that there will be random values inbetween each row of pixels entered. Not all text editors will display line feeds correctly (Notepad didn't for me, but Sublime Text and Vim did).</p>
+
+		<textarea rows = "8" cols = "100" id = "Input">It is Wednesday my dudes</textarea>
+
+		<br>
+
+		<button type = "button" onclick = "ScrabbleSort()">Convert to color values</button>
+		<button type = "button" onclick = "SelectText('Output')">Select text</button>
+
+		<div id = "Output" style = "background-color: #C4C4C4; width: 100%; word-wrap: break-word;">Color values will appear here</div>
+
+	</body>
+
+</html>

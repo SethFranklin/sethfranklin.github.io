@@ -1,0 +1,97 @@
+body
+{
+
+	background-color: #C4E0A8;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	position: fixed;
+
+}
+
+.gameboard
+{
+
+	width: 75vh;
+	height: 75vh;
+	margin-left: -37.5vh;
+	left: 50%;
+	margin-top: -37.5vh;
+	top: 50vh;
+	background-color: #FBFFE8;
+	position: relative;
+	border-radius: 3vh;
+	box-shadow: 0px 0px 0px gray;
+
+}
+
+.piecesection
+{
+
+	position: absolute;
+	width: 22%;
+	height: 22%;
+	background-color: #FFEED6;
+	border-radius: 3vh;
+	margin-left: -11%;
+	margin-top: -11%;
+
+}
+
+.piececlass
+{
+
+	position: absolute;
+	cursor: pointer;
+	background-color: transparent;
+	background-size: 100% 100%;
+	border: none;
+	width: 100%;
+	height: 100%;
+
+}
+
+.piececlass:focus
+{
+
+	outline: 0px;
+
+}
+
+@keyframes piececlick
+{
+
+	0%
+	{
+
+		opacity: 0;
+
+	}
+
+	100%
+	{
+
+		opacity: 1;
+
+	}
+
+}
+
+@keyframes shadowinterpolate
+{
+
+	0%
+	{
+
+		box-shadow: 0px 0px 0px gray;
+
+	}
+
+	100%
+	{
+
+		box-shadow: 0px 0px 30px gray;
+
+	}
+
+}
