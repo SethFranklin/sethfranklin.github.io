@@ -286,10 +286,11 @@ var Metaball = function(nx, ny, sign, nr, nt)
 		for (x = 0; x < canvas.width; x++)
 		{
 
+			xdist = context.Position[0] - x;
+			
 			for (y = 0; y < canvas.height; y++)
 			{
 
-				xdist = context.Position[0] - x;
 				ydist = context.Position[1] - y;
 
 				if (context.sign) ScalarArray[Index] -= 32 * context.Radius / ((xdist * xdist) + (ydist * ydist));
