@@ -450,10 +450,10 @@ function Render()
 
 	Timer += 16.6666667;
 
-	for (var Ball in Balls)
+	for (var i = 0; i < Balls.length; i++)
 	{
 
-		Balls[Ball].Update(16.6666667);
+		Balls[i].Update(16.6666667);
 
 	}
 
@@ -470,10 +470,10 @@ function Render()
 
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-	for (var Ball in Balls)
+	for (var i = 0; i < Balls.length; i++)
 	{
 
-		Balls[Ball].Render();
+		Balls[i].Render();
 
 	}
 
