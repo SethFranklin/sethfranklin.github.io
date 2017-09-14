@@ -352,6 +352,13 @@ window.onmousemove = function(a)
 
 }
 
+window.ontouchmove = function(a)
+{
+
+	Mouse = vec2.fromValues(((a.argetTouches[0].pageX / canvas.width) * 2.0) - 1.0, ((a.targetTouches[0].pageY / canvas.height) * 2.0) - 1.0);
+
+}
+
 function HTTPRequest(RequestType, URL, Argument)
 {
 
