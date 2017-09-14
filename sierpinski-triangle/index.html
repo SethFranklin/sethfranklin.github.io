@@ -2,7 +2,8 @@
 
 	<head>
 
-		<title>WebGL Test</title>
+		<title>Triangle Fractal</title>
+		<link href="https://fonts.googleapis.com/css?family=Neucha" rel="stylesheet">
 		<link rel="stylesheet" type="text/css" href="css/style.css">
 		<script src = "js/main.js"></script>
 		<script src = "js/gl-matrix.js"></script>
@@ -12,6 +13,15 @@
 	<body>
 
 		<canvas id = "canvas">Your browser doesn't support the canvas element.</canvas>
+
+		<div id = "ui" class = "ui">
+
+			<p>Triangle Fractal</p>
+			<p>Iterations: <input type="range" id="iterations" value="7" min="0" max="10" step="1"></p>
+			<p id = "tricount">Tri-count: 0</p>
+			<p>Press enter to show/hide</p>
+
+		</dv>
 
 	</body>
 

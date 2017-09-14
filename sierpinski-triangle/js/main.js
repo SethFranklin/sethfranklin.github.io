@@ -3,11 +3,17 @@ var canvas;
 var gl;
 var VBO;
 var Loop;
+var slider;
+var iterations;
+var tricount;
+var ui;
 
 var BotLeftTransform;
 var BotRightTransform;
 var TopMidTransform;
 var RotateTransform;
+
+var Rotation = 0;
 
 var IdentityMatrix;
 
@@ -192,7 +198,6 @@ var Triangle = function(Count, TopParent, NewTransformation)
 	context.BotRight = null;
 	context.TopMid = null;
 	context.IsParent = TopParent;
-	context.Rotation = 0;
 	context.Transformation = NewTransformation;
 
 	{
@@ -225,28 +230,11 @@ var Triangle = function(Count, TopParent, NewTransformation)
 
 			}
 
-			if (Count == 1)
-			{
-
-				ToRender.push(context.BotLeft);
-				ToRender.push(context.BotRight);
-				ToRender.push(context.TopMid);
-
-			}
-
 		}
-
-	}
-
-	context.Update = function()
-	{
-
-		if (context.IsParent == true)
+		else
 		{
 
-			context.Rotation += 0.01;
-
-			mat3.fromRotation(RotateTransform, context.Rotation);
+			ToRender.push(context);
 
 		}
 
@@ -281,6 +269,9 @@ window.onload = function()
 {
 
 	canvas = document.getElementById("canvas");
+	iterations = document.getElementById("iterations");
+	tricount = document.getElementById("tricount");
+	ui = document.getElementById("ui");
 
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
@@ -337,7 +328,33 @@ window.onload = function()
 
 	Parent = new Triangle(7, true, IdentityMatrix);
 
+	tricount.innerHTML = "Tri-count: " + ToRender.length;
+
 	Loop = setInterval(Render, 16.6666667);
+
+	iterations.onchange = function()
+	{
+
+		ToRender = [];
+
+		Parent = new Triangle(iterations.value, true, IdentityMatrix);
+
+		tricount.innerHTML = "Tri-count: " + ToRender.length;
+
+	}
+
+	window.onkeypress = function(Arg)
+	{
+
+		if (Arg.key == "Enter")
+		{
+
+			if (ui.style.visibility == "visible") ui.style.visibility = "hidden";
+			else ui.style.visibility = "visible";
+
+		}
+
+	}
 
 }
 
@@ -355,7 +372,9 @@ window.onunload = function()
 function Render()
 {
 
-	Parent.Update();
+	Rotation += 0.01;
+
+	mat3.fromRotation(RotateTransform, Rotation);
 
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
