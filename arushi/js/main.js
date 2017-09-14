@@ -203,7 +203,7 @@ var Texture = function(Name)
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
 
 		var image = new Image();
-		image.src = "/../arushi/texture/" + Name + ".png";
+		image.src = "/../texture/" + Name + ".png";
 
 		image.onload = function()
 		{
@@ -287,7 +287,7 @@ window.onload = function()
 
 	Mouse = vec2.create();
 
-	hotfirebeats = new Audio('/../arushi/audio/cdplayer.mp3');
+	hotfirebeats = new Audio('/../audio/cdplayer.mp3');
 	hotfirebeats.play();
 
 	Loop = setInterval(Render, 16.6666667);
