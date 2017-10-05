@@ -23,7 +23,7 @@ window.onload = function () {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     gl.viewport(0, 0, canvas.width, canvas.height);
-    Mos = new Mosaic("../texture/MonaLisa.jpeg");
+    Mos = new Mosaic("../simple-mosaic/texture/MonaLisa.jpeg");
     Loader = document.getElementById("Image");
     Int = setInterval(Update, 0.0166667);
     Loader.onchange = function (event) {
