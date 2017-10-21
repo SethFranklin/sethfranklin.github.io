@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+
+		<title>Sleep sort 🔥💯</title>
+
+		<script type="text/javascript">
+			
+			var output;
+			var timers;
+
+			function Sort()
+			{
+
+				var values = document.getElementById("text").value.split(" ");
+				output = document.getElementById("output");
+				output.innerHTML = "";
+				timers = [];
+
+				for (var i = 0; i < values.length; i++)
+				{
+
+					var num = Number(values[i]);
+
+					timers.push(setTimeout(Print, 1000 * num, num));
+
+				}
+
+			}
+
+			function Print(out)
+			{
+
+				output.innerHTML += out + " ";
+
+			}
+
+		</script>
+
+	</head>
+
+	<body>
+		
+		<h3>Sleep sort 🔥🔥🔥💯💯💯</h3>
+
+		<textarea placeholder = "This will only sort unisgned numbers properly :)" id = "text" rows = "6" cols = "50"></textarea>
+
+		<button type = "button" onclick = "Sort()">sort em up!</button>
+
+		<div id = "output" style = "background-color: #A0A0A0">Sorted values will appear here</div>
+
+	</body>
+
+</html>
