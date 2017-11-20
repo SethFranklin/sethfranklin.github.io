@@ -1,0 +1,46 @@
+﻿<!DOCTYPE HTML>
+
+<html>
+
+<head>
+
+<title>a^2 and b^2 make...</title>
+
+<script>
+
+var op, ad, hy;
+
+window.onload = function()
+{
+
+	op = document.getElementById("op");
+  ad = document.getElementById("ad");
+  hy = document.getElementById("hy");
+
+}
+
+function puta_madre()
+{
+	
+  var a1 = parseFloat(op.value);
+  var a2 = parseFloat(ad.value);
+	hy.innerHTML = "hippopotomus: " + Math.sqrt((a1 * a1) + (a2 * a2));
+
+}
+
+</script>
+
+</head>
+
+<body>
+
+<h3>pythag triples 🔥🔥🔥💯💯💯</h3>
+
+<p>opositt: <input type = "text" id = "op"></p>
+<p>adyacente: <input type = "text" id = "ad"></p>
+<p id = "hy">hippopotomus: </p>
+<button type = button onclick = "puta_madre()">CALC_ulate</button>
+
+</body>
+
+</html>
