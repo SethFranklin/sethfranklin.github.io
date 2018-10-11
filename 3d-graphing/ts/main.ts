@@ -7,6 +7,9 @@ var canvas : HTMLCanvasElement;
 var gl : WebGLRenderingContext;
 var Int : any;
 
+var MainGraph : Graph;
+var CurveShader : Shader; // @TODO: assets class
+
 window.onload = function() : void
 {
 
@@ -24,8 +27,8 @@ window.onload = function() : void
 
 	gl.enable(gl.DEPTH_TEST);
 
-	gl.enable(gl.CULL_FACE);
-	gl.cullFace(gl.BACK);
+	//gl.enable(gl.CULL_FACE);
+	//gl.cullFace(gl.BACK);
 
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
@@ -34,14 +37,18 @@ window.onload = function() : void
 
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
 
-	Terrain.LoadAssets();
-	Terrain.Generate(Math.random(), Math.random());
-
 	Camera.Generate();
+
+	Camera.Position = vec3.fromValues(0, 0, 0);
 
 	Input.Start();
 
 	Camera.Position = vec3.fromValues(75, 200, 110);
+
+	CurveShader = new Shader("curve", ["Model", "ViewProjection"]);
+
+	MainGraph = new Graph();
+	MainGraph.AddCurve(new Curve("10 - ((x * x) + (y * y))"));
 
 	Int = setInterval(Update, 16.666666667);
 
@@ -63,14 +70,15 @@ function Update()
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-	Terrain.Render();
+	MainGraph.Render();
 
 }
 
 window.onunload = function() : void
 {
 
-	Terrain.UnloadAssets();
+	MainGraph.Delete();
+	CurveShader.Delete();
 
 }
 
@@ -115,7 +123,7 @@ window.onmousemove = function(Event) : void
 class Graph
 {
 
-	private var Functions : Function[] = [];
+	private Curves : Curve[] = [];
 
 	public XMin = -10;
 	public XMax = 10;
@@ -139,32 +147,49 @@ class Graph
 
 		this.RenderAxis();
 
-		for (var i : number = 0; i < Functions.length; i++)
+		CurveShader.Use();
+
+		CurveShader.UniformMat4("ViewProjection", Camera.ViewProjection);
+		CurveShader.UniformMat4("Model", mat4.create());
+
+		for (var i : number = 0; i < this.Curves.length; i++)
 		{
 
-			this.Functions[i].Render();
+			this.Curves[i].Render();
 
 		}
 
 	}
 
-	public AddFunction(New : function) : void
+	public AddCurve(New : Curve) : void
 	{
 
-		this.Functions.push(New);
 		New.ParentGraph = this;
+		this.Curves.push(New);
 
 		New.UpdateGeometry();
 
 	}
 
-	public UpdateGeometry()
+	public UpdateGeometry() : void
 	{
 
-		for (var i : number = 0; i < Functions.length; i++)
+		for (var i : number = 0; i < this.Curves.length; i++)
 		{
 
-			this.Functions[i].UpdateGeometry();
+			this.Curves[i].UpdateGeometry();
+
+		}
+
+	}
+
+	public Delete() : void
+	{
+
+		for (var i : number = 0; i < this.Curves.length; i++)
+		{
+
+			this.Curves[i].Delete();
 
 		}
 
@@ -179,37 +204,176 @@ class Graph
 
 }
 
-class Function
+class Curve
 {
 
-	private var OverlayTexture : Texture;
+	private CurveModel : Model;
 
-	private var Curve : Model;
+	public ParentGraph : Graph;
+	public EvalString : string;
 
-	public var ParentGraph : Graph;
-
-	public constructor()
+	public constructor(neweval : string)
 	{
 
+		this.EvalString = neweval;
 
+		this.CurveModel = new Model();
 
 	}
 
 	public Render() : void
 	{
 
-
+		this.CurveModel.Render();
 
 	}
 
-	public UpdateGeometry()
+	public ChangeCurve(neweval : string) : void
+	{
+
+		this.EvalString = neweval;
+
+		this.UpdateGeometry();
+
+	}
+
+	public UpdateGeometry() : void // from [-1, 1] in x, y
 	{
 
 		var Verticies : number[] = [];
 
-		for (var xi : number = 0; xi < this.ParentGraph.XMin)
+		var deltax : number = 2 / (this.ParentGraph.XSub + 1);
+		var deltay : number = 2 / (this.ParentGraph.YSub + 1);
 
-		this.Model.UpdateMesh(Verticies);
+		var x : number;
+		var y : number;
+		var z : number;
+
+		var Points : number[] = []; // value(x, y, z) at (xi * (this.ParentGraph.YSub + 2)) + yi
+
+		for (var xi : number = 0; xi < this.ParentGraph.XSub + 2; xi++)
+		{
+
+			for (var yi : number = 0; yi < this.ParentGraph.YSub + 2; yi++)
+			{
+
+				x = -1 + (deltax * xi);
+				y = -1 + (deltay * yi);
+
+				z = eval(this.EvalString);
+
+				if (isNaN(z)) z = 0; // handling DNE, set to zero
+
+				Points.push(x, y, eval(this.EvalString));
+
+			}
+
+		}
+
+		var P1 : Float32Array = vec3.create();
+		var P2 : Float32Array = vec3.create();
+		var P3 : Float32Array = vec3.create();
+		var P4 : Float32Array = vec3.create();
+
+		var PM : Float32Array = vec3.create(); // mid point of four
+
+		var CrossA1 : Float32Array = vec3.create(); // vectors used in cross product
+		var CrossB1 : Float32Array = vec3.create();
+		var CrossA2 : Float32Array = vec3.create();
+		var CrossB2 : Float32Array = vec3.create();
+		var CrossA3 : Float32Array = vec3.create();
+		var CrossB3 : Float32Array = vec3.create();
+		var CrossA4 : Float32Array = vec3.create();
+		var CrossB4 : Float32Array = vec3.create();
+
+		var index1 : number;
+		var index2 : number;
+		var index3 : number;
+		var index4 : number;
+
+		for (var xi : number = 0; xi < this.ParentGraph.XSub + 1; xi++)
+		{
+
+			for (var yi : number = 0; yi < this.ParentGraph.YSub + 1; yi++)
+			{
+
+				index1 = (xi * (this.ParentGraph.YSub + 2)) + yi;
+				index2 = ((xi + 1) * (this.ParentGraph.YSub + 2)) + yi;
+				index3 = (xi * (this.ParentGraph.YSub + 2)) + (yi + 1);
+				index4 = ((xi + 1) * (this.ParentGraph.YSub + 2)) + (yi + 1);
+
+				P1 = vec3.fromValues(Points[index1 * 3], Points[(index1 * 3) + 1], Points[(index1 * 3) + 2]);
+				P2 = vec3.fromValues(Points[index2 * 3], Points[(index2 * 3) + 1], Points[(index2 * 3) + 2]);
+				P3 = vec3.fromValues(Points[index3 * 3], Points[(index3 * 3) + 1], Points[(index3 * 3) + 2]);
+				P4 = vec3.fromValues(Points[index4 * 3], Points[(index4 * 3) + 1], Points[(index4 * 3) + 2]);
+
+				PM = vec3.fromValues((P1[0] + P4[0]) / 2, (P1[1] + P4[1]) / 2, (P1[2] + P2[2] + P3[2] + P4[2]) / 4);
+
+				// Find normal of four triangles (later find point normals, continuous smooth surface with smooth shading,
+				// less vectors sent using indices):
+				
+				vec3.subtract(CrossA1, P1, PM);
+				vec3.subtract(CrossB1, P2, PM);
+
+				vec3.subtract(CrossA2, P2, PM);
+				vec3.subtract(CrossB2, P4, PM);
+
+				vec3.subtract(CrossA3, P3, PM);
+				vec3.subtract(CrossB3, P1, PM);
+
+				vec3.subtract(CrossA4, P4, PM);
+				vec3.subtract(CrossB4, P3, PM);
+
+				vec3.cross(CrossA1, CrossA1, CrossB1);
+				vec3.cross(CrossA2, CrossA2, CrossB2);
+				vec3.cross(CrossA3, CrossA3, CrossB3);
+				vec3.cross(CrossA4, CrossA4, CrossB4);
+
+				vec3.normalize(CrossA1, CrossA1);
+				vec3.normalize(CrossA2, CrossA2);
+				vec3.normalize(CrossA3, CrossA3);
+				vec3.normalize(CrossA4, CrossA4);
+
+				// Add four triangles (12 points in total)
+
+				// 12
+
+				Verticies.push(P1[0], P1[1], P1[2], CrossA1[0], CrossA1[1], CrossA1[2], xi / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+				Verticies.push(P2[0], P2[1], P2[2], CrossA1[0], CrossA1[1], CrossA1[2], (xi + 1) / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], CrossA1[0], CrossA1[1], CrossA1[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+
+				// 24
+
+				Verticies.push(P2[0], P2[1], P2[2], CrossA2[0], CrossA2[1], CrossA2[2], (xi + 1) / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+				Verticies.push(P4[0], P4[1], P4[2], CrossA2[0], CrossA2[1], CrossA2[2], (xi + 1) / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], CrossA2[0], CrossA2[1], CrossA2[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+
+				// 31
+
+				Verticies.push(P3[0], P3[1], P3[2], CrossA3[0], CrossA3[1], CrossA3[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+				Verticies.push(P1[0], P1[1], P1[2], CrossA3[0], CrossA3[1], CrossA3[2], xi / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], CrossA3[0], CrossA3[1], CrossA3[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+
+				// 43
+
+				Verticies.push(P4[0], P4[1], P4[2], CrossA4[0], CrossA4[1], CrossA4[2], (xi + 1) / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+				Verticies.push(P3[0], P3[1], P3[2], CrossA4[0], CrossA4[1], CrossA4[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], CrossA4[0], CrossA4[1], CrossA4[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+
+				console.log(PM);
+
+			}
+
+		}
+
+		this.CurveModel.UpdateMesh(Verticies);
+
+	}
+
+	public Delete() : void
+	{
+
+		this.CurveModel.Delete();
 
 	}
 
@@ -222,16 +386,10 @@ class Model // Doesn't do model matrix: Chunk.shader.UniformMat4("Model", this.M
 	private VertCount : number;
 	private ModelMatrix : Float32Array;
 
-	public constructor(Verticies : number[])
+	public constructor()
 	{
 
 		this.VBO = gl.createBuffer();
-
-		this.VertCount = Verticies.length / 8;
-
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Verticies), gl.STATIC_DRAW);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 	}
 
@@ -251,18 +409,26 @@ class Model // Doesn't do model matrix: Chunk.shader.UniformMat4("Model", this.M
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
 
-		gl.enableVertexAttribArray(Chunk.shader.PositionLocation);
-		gl.vertexAttribPointer(Chunk.shader.PositionLocation, 3, gl.FLOAT, false, 32, 0);
+		gl.enableVertexAttribArray(CurveShader.PositionLocation);
+		gl.vertexAttribPointer(CurveShader.PositionLocation, 3, gl.FLOAT, false, 32, 0);
 
-		gl.enableVertexAttribArray(Chunk.shader.NormalLocation);
-		gl.vertexAttribPointer(Chunk.shader.NormalLocation, 3, gl.FLOAT, false, 32, 12);
+		gl.enableVertexAttribArray(CurveShader.NormalLocation);
+		gl.vertexAttribPointer(CurveShader.NormalLocation, 3, gl.FLOAT, false, 32, 12);
 
-		gl.enableVertexAttribArray(Chunk.shader.UVLocation);
-		gl.vertexAttribPointer(Chunk.shader.UVLocation, 2, gl.FLOAT, false, 32, 24);
+		gl.enableVertexAttribArray(CurveShader.UVLocation);
+		gl.vertexAttribPointer(CurveShader.UVLocation, 2, gl.FLOAT, false, 32, 24);
 
 		gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+	}
+
+	public Delete() : void
+	{
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		gl.deleteBuffer(this.VBO);
 
 	}
 
@@ -277,7 +443,7 @@ class Camera
 
 	public static Position : Float32Array;
 
-	public static Yaw : number = 3 * Math.PI / 4.0;
+	public static Yaw : number = 0;
 	public static Pitch : number = 0;
 
 	public static ViewProjection : Float32Array;
@@ -299,8 +465,8 @@ class Camera
 		if (Camera.Pitch > Camera.PiOverTwo) Camera.Pitch = Camera.PiOverTwo;
 		else if (Camera.Pitch < -Camera.PiOverTwo) Camera.Pitch = -Camera.PiOverTwo;
 
-		if (Input.IsKeyDown(32)) Camera.Position[1] += Camera.Speed * 0.0166667; // space key
-		if (Input.IsKeyDown(16)) Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
+		if (Input.IsKeyDown(32)) Camera.Position[0] += Camera.Speed * 0.0166667; // space key
+		if (Input.IsKeyDown(16)) Camera.Position[0] -= Camera.Speed * 0.0166667; // shift key
 
 		var DeltaPosition : Float32Array = vec3.create();
 		var Direction : Float32Array;
@@ -309,7 +475,7 @@ class Camera
 		{
 
 			Direction = vec3.fromValues(0, 0, -Camera.Speed * 0.0166667);
-			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 
 		}
@@ -318,7 +484,7 @@ class Camera
 		{
 
 			Direction = vec3.fromValues(0, 0, Camera.Speed * 0.0166667);
-			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 
 		}
@@ -327,7 +493,7 @@ class Camera
 		{
 
 			Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
-			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 			
 		}
@@ -336,7 +502,7 @@ class Camera
 		{
 
 			Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
-			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 			
 		}
@@ -362,7 +528,7 @@ class Camera
 		var b = mat4.create();
 		var c = mat4.create();
 
-		mat4.fromYRotation(b, Camera.Yaw);
+		mat4.fromZRotation(b, Camera.Yaw);
 		mat4.fromXRotation(c, Camera.Pitch);
 		mat4.multiply(b, c, b);
 		mat4.fromTranslation(a, vec3.fromValues(-Camera.Position[0], -Camera.Position[1], -Camera.Position[2]));
