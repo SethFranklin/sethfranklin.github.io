@@ -4,7 +4,12 @@ var gl;
 var Int;
 var MainGraph;
 var CurveShader; // @TODO: assets class
+var ArushiTexture;
+var EquationText;
+var Button;
 window.onload = function () {
+    EquationText = document.getElementById("equation");
+    Button = document.getElementById("button");
     canvas = document.getElementById("canvas");
     gl = canvas.getContext("webgl");
     if (!gl) {
@@ -12,20 +17,28 @@ window.onload = function () {
         return;
     }
     gl.enable(gl.DEPTH_TEST);
-    //gl.enable(gl.CULL_FACE);
-    //gl.cullFace(gl.BACK);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     gl.viewport(0, 0, canvas.width, canvas.height);
     canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
     Camera.Generate();
-    Camera.Position = vec3.fromValues(0, 0, 0);
     Input.Start();
-    Camera.Position = vec3.fromValues(75, 200, 110);
-    CurveShader = new Shader("curve", ["Model", "ViewProjection"]);
+    CurveShader = new Shader("curve", ["Model", "ViewProjection", "Texture"]);
+    ArushiTexture = new Texture("Arushi", gl.REPEAT, gl.LINEAR);
     MainGraph = new Graph();
-    MainGraph.AddCurve(new Curve("10 - ((x * x) + (y * y))"));
+    MainGraph.AddCurve(new Curve("Math.sin(x) * Math.sin(y)"));
     Int = setInterval(Update, 16.666666667);
+    Button.onclick = function () {
+        MainGraph.Curves[0].ChangeCurve(EquationText.value);
+    };
+    canvas.onclick = function () {
+        canvas.requestPointerLock();
+    };
+    canvas.onmousemove = function (Event) {
+        Camera.MouseMove(Event);
+    };
 };
 function Update() {
     // Update
@@ -40,6 +53,7 @@ function Update() {
 window.onunload = function () {
     MainGraph.Delete();
     CurveShader.Delete();
+    ArushiTexture.Delete();
 };
 window.onresize = function () {
     canvas.width = window.innerWidth;
@@ -52,28 +66,24 @@ window.onkeydown = function (Event) {
 window.onkeyup = function (Event) {
     Input.KeyUpEvent(Event.keyCode);
 };
-window.onclick = function () {
-    canvas.requestPointerLock();
-};
-window.onmousemove = function (Event) {
-    Camera.MouseMove(Event);
-};
 var Graph = /** @class */ (function () {
     function Graph() {
         this.Curves = [];
-        this.XMin = -10;
-        this.XMax = 10;
-        this.XSub = 8; // subdivisions
-        this.YMin = -10;
-        this.YMax = 10;
-        this.YSub = 8;
-        this.ZScale = 1;
+        this.XMin = -20;
+        this.XMax = 20;
+        this.XSub = 100; // subdivisions
+        this.YMin = -20;
+        this.YMax = 20;
+        this.YSub = 100;
+        this.ZScale = 10;
     }
     Graph.prototype.Render = function () {
         this.RenderAxis();
         CurveShader.Use();
+        CurveShader.UniformInt("Texture", 0);
         CurveShader.UniformMat4("ViewProjection", Camera.ViewProjection);
         CurveShader.UniformMat4("Model", mat4.create());
+        ArushiTexture.Use(0);
         for (var i = 0; i < this.Curves.length; i++) {
             this.Curves[i].Render();
         }
@@ -111,17 +121,17 @@ var Curve = /** @class */ (function () {
     };
     Curve.prototype.UpdateGeometry = function () {
         var Verticies = [];
-        var deltax = 2 / (this.ParentGraph.XSub + 1);
-        var deltay = 2 / (this.ParentGraph.YSub + 1);
+        var deltax = (this.ParentGraph.XMax - this.ParentGraph.XMin) / (this.ParentGraph.XSub + 1);
+        var deltay = (this.ParentGraph.YMax - this.ParentGraph.YMin) / (this.ParentGraph.YSub + 1);
         var x;
         var y;
         var z;
         var Points = []; // value(x, y, z) at (xi * (this.ParentGraph.YSub + 2)) + yi
         for (var xi = 0; xi < this.ParentGraph.XSub + 2; xi++) {
             for (var yi = 0; yi < this.ParentGraph.YSub + 2; yi++) {
-                x = -1 + (deltax * xi);
-                y = -1 + (deltay * yi);
-                z = eval(this.EvalString);
+                x = this.ParentGraph.XMin + (deltax * xi);
+                y = this.ParentGraph.YMin + (deltay * yi);
+                z = eval(this.EvalString) * this.ParentGraph.ZScale;
                 if (isNaN(z))
                     z = 0; // handling DNE, set to zero
                 Points.push(x, y, eval(this.EvalString));
@@ -173,7 +183,8 @@ var Curve = /** @class */ (function () {
                 vec3.normalize(CrossA2, CrossA2);
                 vec3.normalize(CrossA3, CrossA3);
                 vec3.normalize(CrossA4, CrossA4);
-                // Add four triangles (12 points in total)
+                // Add four triangles (12 points in total) multiplied by two for back surfaces with negative normals
+                // Front sides:
                 // 12
                 Verticies.push(P1[0], P1[1], P1[2], CrossA1[0], CrossA1[1], CrossA1[2], xi / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
                 Verticies.push(P2[0], P2[1], P2[2], CrossA1[0], CrossA1[1], CrossA1[2], (xi + 1) / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
@@ -190,7 +201,22 @@ var Curve = /** @class */ (function () {
                 Verticies.push(P4[0], P4[1], P4[2], CrossA4[0], CrossA4[1], CrossA4[2], (xi + 1) / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
                 Verticies.push(P3[0], P3[1], P3[2], CrossA4[0], CrossA4[1], CrossA4[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
                 Verticies.push(PM[0], PM[1], PM[2], CrossA4[0], CrossA4[1], CrossA4[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
-                console.log(PM);
+                // Back sides:
+                Verticies.push(P1[0], P1[1], P1[2], -CrossA1[0], -CrossA1[1], -CrossA1[2], xi / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+                Verticies.push(PM[0], PM[1], PM[2], -CrossA1[0], -CrossA1[1], -CrossA1[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+                Verticies.push(P2[0], P2[1], P2[2], -CrossA1[0], -CrossA1[1], -CrossA1[2], (xi + 1) / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+                // 24
+                Verticies.push(P2[0], P2[1], P2[2], -CrossA2[0], -CrossA2[1], -CrossA2[2], (xi + 1) / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+                Verticies.push(PM[0], PM[1], PM[2], -CrossA2[0], -CrossA2[1], -CrossA2[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+                Verticies.push(P4[0], P4[1], P4[2], -CrossA2[0], -CrossA2[1], -CrossA2[2], (xi + 1) / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+                // 31
+                Verticies.push(P3[0], P3[1], P3[2], -CrossA3[0], -CrossA3[1], -CrossA3[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+                Verticies.push(PM[0], PM[1], PM[2], -CrossA3[0], -CrossA3[1], -CrossA3[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+                Verticies.push(P1[0], P1[1], P1[2], -CrossA3[0], -CrossA3[1], -CrossA3[2], xi / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+                // 43
+                Verticies.push(P4[0], P4[1], P4[2], -CrossA4[0], -CrossA4[1], -CrossA4[2], (xi + 1) / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+                Verticies.push(PM[0], PM[1], PM[2], -CrossA4[0], -CrossA4[1], -CrossA4[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+                Verticies.push(P3[0], P3[1], P3[2], -CrossA4[0], -CrossA4[1], -CrossA4[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
             }
         }
         this.CurveModel.UpdateMesh(Verticies);
@@ -232,44 +258,42 @@ var Camera = /** @class */ (function () {
     function Camera() {
     }
     Camera.Generate = function () {
-        this.Position = vec3.create();
-        this.ViewProjection = mat4.create();
+        Camera.Position = vec3.create();
+        Camera.ViewProjection = mat4.create();
     };
     Camera.Update = function () {
         //while (Camera.Yaw > Camera.TwoPi) Camera.Yaw -= Camera.TwoPi;
         //while (Camera.Yaw < 0) Camera.Yaw += Camera.TwoPi;
-        if (Camera.Pitch > Camera.PiOverTwo)
-            Camera.Pitch = Camera.PiOverTwo;
-        else if (Camera.Pitch < -Camera.PiOverTwo)
-            Camera.Pitch = -Camera.PiOverTwo;
+        //if (Camera.Pitch > Math.PI) Camera.Pitch = Math.PI;
+        //else if (Camera.Pitch < Camera.TwoPi) Camera.Pitch = 0;
         if (Input.IsKeyDown(32))
-            Camera.Position[0] += Camera.Speed * 0.0166667; // space key
+            Camera.Position[2] += Camera.Speed * 0.0166667; // space key
         if (Input.IsKeyDown(16))
-            Camera.Position[0] -= Camera.Speed * 0.0166667; // shift key
+            Camera.Position[2] -= Camera.Speed * 0.0166667; // shift key
         var DeltaPosition = vec3.create();
         var Direction;
         if (Input.IsKeyDown(87)) // w key
          {
-            Direction = vec3.fromValues(0, 0, -Camera.Speed * 0.0166667);
-            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+            Direction = vec3.fromValues(0, Camera.Speed * 0.0166667, 0);
+            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         if (Input.IsKeyDown(83)) // s key
          {
-            Direction = vec3.fromValues(0, 0, Camera.Speed * 0.0166667);
-            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+            Direction = vec3.fromValues(0, -Camera.Speed * 0.0166667, 0);
+            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         if (Input.IsKeyDown(68)) // d key
          {
-            Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
-            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+            Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
+            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         if (Input.IsKeyDown(65)) // a key
          {
-            Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
-            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+            Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
+            vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         vec3.add(Camera.Position, Camera.Position, DeltaPosition);
@@ -412,7 +436,7 @@ var Texture = /** @class */ (function () {
         gl.bindTexture(gl.TEXTURE_2D, context.ID);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
         var image = new Image();
-        image.src = "/../texture/" + Name + ".png";
+        image.src = "/../3d-graphing/texture/" + Name + ".png";
         image.onload = function () {
             gl.bindTexture(gl.TEXTURE_2D, context.ID);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);

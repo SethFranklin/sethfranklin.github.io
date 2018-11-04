@@ -7,6 +7,7 @@
 		
 		<title>3D Graphing Calculator</title>
 
+		<link href = "https://fonts.googleapis.com/css?family=Neucha" rel = "stylesheet">
 		<link rel = "stylesheet" type = "text/css" href = "css/style.css">
 		<script src = "js/main.js"></script>
 		<script src = "js/gl-matrix-min.js"></script>
@@ -16,6 +17,13 @@
 	<body>
 		
 		<canvas id = "canvas">Your browser doesn't support the canvas element.</canvas>
+
+		<div id = "ui" class = "ui">
+
+			<p><b>3D Graphing Calculator Prototype</b></p>
+			<p>y = <input type = "text" id = "equation" name = "Equation" value = "Math.sin(x) * Math.sin(y)" placeholder = "example: Math.sin(x) * Math.sin(y)" size = 50><button type = "button" id = "button">Generate</button></p>
+
+		</dv>
 
 	</body>
 

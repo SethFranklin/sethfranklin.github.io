@@ -9,9 +9,16 @@ var Int : any;
 
 var MainGraph : Graph;
 var CurveShader : Shader; // @TODO: assets class
+var ArushiTexture : Texture
+
+var EquationText : any;
+var Button : HTMLElement;
 
 window.onload = function() : void
 {
+
+	EquationText = document.getElementById("equation");
+	Button = document.getElementById("button");
 
 	canvas = <HTMLCanvasElement> document.getElementById("canvas");
 	gl = canvas.getContext("webgl");
@@ -27,8 +34,8 @@ window.onload = function() : void
 
 	gl.enable(gl.DEPTH_TEST);
 
-	//gl.enable(gl.CULL_FACE);
-	//gl.cullFace(gl.BACK);
+	gl.enable(gl.CULL_FACE);
+	gl.cullFace(gl.BACK);
 
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
@@ -39,18 +46,37 @@ window.onload = function() : void
 
 	Camera.Generate();
 
-	Camera.Position = vec3.fromValues(0, 0, 0);
-
 	Input.Start();
 
-	Camera.Position = vec3.fromValues(75, 200, 110);
+	CurveShader = new Shader("curve", ["Model", "ViewProjection", "Texture"]);
 
-	CurveShader = new Shader("curve", ["Model", "ViewProjection"]);
+	ArushiTexture = new Texture("Arushi", gl.REPEAT, gl.LINEAR);
 
 	MainGraph = new Graph();
-	MainGraph.AddCurve(new Curve("10 - ((x * x) + (y * y))"));
+	MainGraph.AddCurve(new Curve("Math.sin(x) * Math.sin(y)"));
 
 	Int = setInterval(Update, 16.666666667);
+
+	Button.onclick = function() // really sketchy, change this
+	{
+
+		MainGraph.Curves[0].ChangeCurve(EquationText.value);
+
+	}
+
+	canvas.onclick = function() : void
+	{
+
+		canvas.requestPointerLock();
+		
+	}
+
+	canvas.onmousemove = function(Event) : void
+	{
+
+		Camera.MouseMove(Event);
+
+	}
 
 }
 
@@ -79,6 +105,7 @@ window.onunload = function() : void
 
 	MainGraph.Delete();
 	CurveShader.Delete();
+	ArushiTexture.Delete();
 
 }
 
@@ -106,34 +133,20 @@ window.onkeyup = function(Event) : void
 	
 }
 
-window.onclick = function() : void
-{
-
-	canvas.requestPointerLock();
-	
-}
-
-window.onmousemove = function(Event) : void
-{
-
-	Camera.MouseMove(Event);
-
-}
-
 class Graph
 {
 
-	private Curves : Curve[] = [];
+	public Curves : Curve[] = [];
 
-	public XMin = -10;
-	public XMax = 10;
-	public XSub = 8; // subdivisions
+	public XMin = -20;
+	public XMax = 20;
+	public XSub = 100; // subdivisions
 
-	public YMin = -10;
-	public YMax = 10;
-	public YSub = 8;
+	public YMin = -20;
+	public YMax = 20;
+	public YSub = 100;
 
-	public ZScale = 1;
+	public ZScale = 10;
 
 	public constructor()
 	{
@@ -149,8 +162,12 @@ class Graph
 
 		CurveShader.Use();
 
+		CurveShader.UniformInt("Texture", 0);
+
 		CurveShader.UniformMat4("ViewProjection", Camera.ViewProjection);
 		CurveShader.UniformMat4("Model", mat4.create());
+
+		ArushiTexture.Use(0);
 
 		for (var i : number = 0; i < this.Curves.length; i++)
 		{
@@ -242,8 +259,8 @@ class Curve
 
 		var Verticies : number[] = [];
 
-		var deltax : number = 2 / (this.ParentGraph.XSub + 1);
-		var deltay : number = 2 / (this.ParentGraph.YSub + 1);
+		var deltax : number = (this.ParentGraph.XMax - this.ParentGraph.XMin) / (this.ParentGraph.XSub + 1);
+		var deltay : number = (this.ParentGraph.YMax - this.ParentGraph.YMin) / (this.ParentGraph.YSub + 1);
 
 		var x : number;
 		var y : number;
@@ -257,10 +274,10 @@ class Curve
 			for (var yi : number = 0; yi < this.ParentGraph.YSub + 2; yi++)
 			{
 
-				x = -1 + (deltax * xi);
-				y = -1 + (deltay * yi);
+				x = this.ParentGraph.XMin + (deltax * xi);
+				y = this.ParentGraph.YMin + (deltay * yi);
 
-				z = eval(this.EvalString);
+				z = eval(this.EvalString) * this.ParentGraph.ZScale;
 
 				if (isNaN(z)) z = 0; // handling DNE, set to zero
 
@@ -334,7 +351,9 @@ class Curve
 				vec3.normalize(CrossA3, CrossA3);
 				vec3.normalize(CrossA4, CrossA4);
 
-				// Add four triangles (12 points in total)
+				// Add four triangles (12 points in total) multiplied by two for back surfaces with negative normals
+
+				// Front sides:
 
 				// 12
 
@@ -360,7 +379,29 @@ class Curve
 				Verticies.push(P3[0], P3[1], P3[2], CrossA4[0], CrossA4[1], CrossA4[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
 				Verticies.push(PM[0], PM[1], PM[2], CrossA4[0], CrossA4[1], CrossA4[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
 
-				console.log(PM);
+				// Back sides:
+				
+				Verticies.push(P1[0], P1[1], P1[2], -CrossA1[0], -CrossA1[1], -CrossA1[2], xi / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], -CrossA1[0], -CrossA1[1], -CrossA1[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+				Verticies.push(P2[0], P2[1], P2[2], -CrossA1[0], -CrossA1[1], -CrossA1[2], (xi + 1) / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+
+				// 24
+
+				Verticies.push(P2[0], P2[1], P2[2], -CrossA2[0], -CrossA2[1], -CrossA2[2], (xi + 1) / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], -CrossA2[0], -CrossA2[1], -CrossA2[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+				Verticies.push(P4[0], P4[1], P4[2], -CrossA2[0], -CrossA2[1], -CrossA2[2], (xi + 1) / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+
+				// 31
+
+				Verticies.push(P3[0], P3[1], P3[2], -CrossA3[0], -CrossA3[1], -CrossA3[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], -CrossA3[0], -CrossA3[1], -CrossA3[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+				Verticies.push(P1[0], P1[1], P1[2], -CrossA3[0], -CrossA3[1], -CrossA3[2], xi / (this.ParentGraph.XSub + 1), yi / (this.ParentGraph.YSub + 1));
+
+				// 43
+
+				Verticies.push(P4[0], P4[1], P4[2], -CrossA4[0], -CrossA4[1], -CrossA4[2], (xi + 1) / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
+				Verticies.push(PM[0], PM[1], PM[2], -CrossA4[0], -CrossA4[1], -CrossA4[2], (xi + 0.5) / (this.ParentGraph.XSub + 1), (yi + 0.5) / (this.ParentGraph.YSub + 1));
+				Verticies.push(P3[0], P3[1], P3[2], -CrossA4[0], -CrossA4[1], -CrossA4[2], xi / (this.ParentGraph.XSub + 1), (yi + 1) / (this.ParentGraph.YSub + 1));
 
 			}
 
@@ -451,8 +492,8 @@ class Camera
 	public static Generate() : void
 	{
 
-		this.Position = vec3.create();
-		this.ViewProjection = mat4.create();
+		Camera.Position = vec3.create();
+		Camera.ViewProjection = mat4.create();
 
 	}
 
@@ -462,11 +503,11 @@ class Camera
 		//while (Camera.Yaw > Camera.TwoPi) Camera.Yaw -= Camera.TwoPi;
 		//while (Camera.Yaw < 0) Camera.Yaw += Camera.TwoPi;
 
-		if (Camera.Pitch > Camera.PiOverTwo) Camera.Pitch = Camera.PiOverTwo;
-		else if (Camera.Pitch < -Camera.PiOverTwo) Camera.Pitch = -Camera.PiOverTwo;
+		//if (Camera.Pitch > Math.PI) Camera.Pitch = Math.PI;
+		//else if (Camera.Pitch < Camera.TwoPi) Camera.Pitch = 0;
 
-		if (Input.IsKeyDown(32)) Camera.Position[0] += Camera.Speed * 0.0166667; // space key
-		if (Input.IsKeyDown(16)) Camera.Position[0] -= Camera.Speed * 0.0166667; // shift key
+		if (Input.IsKeyDown(32)) Camera.Position[2] += Camera.Speed * 0.0166667; // space key
+		if (Input.IsKeyDown(16)) Camera.Position[2] -= Camera.Speed * 0.0166667; // shift key
 
 		var DeltaPosition : Float32Array = vec3.create();
 		var Direction : Float32Array;
@@ -474,8 +515,8 @@ class Camera
 		if (Input.IsKeyDown(87)) // w key
 		{
 
-			Direction = vec3.fromValues(0, 0, -Camera.Speed * 0.0166667);
-			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			Direction = vec3.fromValues(0, Camera.Speed * 0.0166667, 0);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 
 		}
@@ -483,8 +524,8 @@ class Camera
 		if (Input.IsKeyDown(83)) // s key
 		{
 
-			Direction = vec3.fromValues(0, 0, Camera.Speed * 0.0166667);
-			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			Direction = vec3.fromValues(0, -Camera.Speed * 0.0166667, 0);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 
 		}
@@ -492,8 +533,8 @@ class Camera
 		if (Input.IsKeyDown(68)) // d key
 		{
 
-			Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
-			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 			
 		}
@@ -501,8 +542,8 @@ class Camera
 		if (Input.IsKeyDown(65)) // a key
 		{
 
-			Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
-			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
+			Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
+			vec3.rotateZ(Direction, Direction, vec3.fromValues(0, 0, 0), Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 			
 		}
@@ -778,7 +819,7 @@ class Texture
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
 
 		var image = new Image();
-		image.src = "/../texture/" + Name + ".png";
+		image.src = "/../3d-graphing/texture/" + Name + ".png";
 
 		image.onload = function()
 		{
