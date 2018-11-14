@@ -28,39 +28,47 @@ window.onload = function()
 
 		}
 
-		var result = LSRL(xarray, yarray);
+		var result = log_reg(xarray, yarray);
 
-		Output.innerHTML = "y = " + result[0].toFixed(4) + " + " + result[1].toFixed(4) + " * x";
+		Output.innerHTML = "y = " + result[0].toFixed(4) + " + " + result[1].toFixed(4) + " * ln(x)";
 
 	}
 
 
 }
 
-function LSRL(xvals, yvals) // two arrays of numbers of same length n
+function log_reg(xvals, yvals) // two arrays of numbers of same length n
 {
 
 	var b0 = 0;
 	var b1 = 0;
-	var xsum = 0;
+
+	var A = 0;
+	var C = 0;
+	
 	var ysum = 0;
-	var xysum = 0;
-	var xsqrdsum = 0;
+	var lnxsum = 0;
+	var ln2xsum = 0;
+	var ylnxsum = 0;
 
 	var n = xvals.length;
 
 	for (var i = 0; i < n; i++)
 	{
 
-		xsum += xvals[i];
+		var ln = Math.log(xvals[i]);
 		ysum += yvals[i];
-		xysum += (xvals[i] * yvals[i]);
-		xsqrdsum += (xvals[i] * xvals[i]);
+		lnxsum += ln;
+		ln2xsum += (ln * ln);
+		ylnxsum += (yvals[i] * ln);
 
 	}
 
-	b1 = ((xsum * ysum) - (n * xysum)) / ((xsum * xsum) - (n * xsqrdsum));
-	b0 = (ysum - (b1 * xsum)) / n;
+	A = ((ysum * ln2xsum) - (lnxsum * ylnxsum)) / ((n * ylnxsum) - (ysum * lnxsum));
+	C = ysum / ((n * A) + lnxsum);
+
+	b0 = A * C
+	b1 = C;
 
 	return [b0, b1];
 
