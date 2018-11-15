@@ -1,0 +1,39 @@
+
+<!DOCTYPE HTML>
+
+<html>
+	
+	<head>
+		
+		<title>Gradient Descent Regression</title>
+
+		<script src = "js/main.js"></script>
+
+	</head>
+
+	<body>
+		
+		<h3>Approximate Regressions using Gradient Descent</h3>
+		<p>Input each data point on a new line with a space betwen x and y</p>
+		<p>Example:</p>
+		<p>
+		x y<br>
+		0 2<br>
+		1 5<br>
+		2 8<br>
+		3 11
+		</p>
+		<textarea id = "data" rows = "20" cols = "26" placeholder = "Enter data here"></textarea>
+		<br>Use x as independent variable and constants b0, b1, b2, etc...<br>
+		<a href = "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math" target = "_blank">Javascript math functions and constants</a><br>
+		f(x) = <input type = "text" id = "function" value = "b0 + b1 * x" placeholder = "Enter function here. Use constants b0, b1, b2, etc..." size = 50>
+		<br>
+		Iterations: <input type = "number" id = "iterations" value = "10000" min = 1>
+		<br>
+		<button id = "button" type = "button">Approximate Regression</button>
+		<br>
+		<p id = "output"></p>
+
+	</body>
+
+</html>
