@@ -102,6 +102,8 @@ window.onclick = function() : void
 {
 
 	canvas.requestPointerLock();
+
+	Camera.Click(false);
 	
 }
 
@@ -215,6 +217,30 @@ class Terrain
 
 	}
 
+	public static GetBlock(x : number, y : number, z : number) : Block
+	{
+
+		if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || z >= Chunk.Height) return null;
+		else return Terrain.Chunks[Math.floor(x / Chunk.XWidth)][Math.floor(z / Chunk.ZWidth)].GetBlock(x % Chunk.XWidth, y, z % Chunk.ZWidth);
+
+	}
+
+	public static SetBlock(x : number, y : number , z : number, b : Block) : void
+	{
+
+		var cx = Math.floor(x / Chunk.XWidth); // chunk x
+		var cz = Math.floor(z / Chunk.ZWidth);
+
+		var ox = x % Chunk.XWidth;
+		var oz = z % Chunk.ZWidth;
+
+		Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
+
+		Terrain.Chunks[cx][cz].UpdateMesh();
+
+	}
+
+
 }
 
 class Chunk
@@ -236,7 +262,7 @@ class Chunk
 	private VertCount : number;
 	private ModelMatrix : Float32Array;
 
-	private static BottomTextures : Dictionary<Block, number>;
+	private static BottomTextures : Dictionary<Block, number>; // @TODO: stop using my dumbass dictionary class
 	private static SideTextures : Dictionary<Block, number>;
 	private static TopTextures : Dictionary<Block, number>;
 
@@ -495,6 +521,13 @@ class Chunk
 
 	}
 
+	public SetBlock(x : number, y : number , z : number, b : Block) : void
+	{
+
+		this.Blocks[x][y][z] = b;
+
+	}
+
 	public Render() : void
 	{
 
@@ -609,6 +642,69 @@ class Camera
 
 		Camera.Yaw += Event.movementX / 1000.0;
 		Camera.Pitch += Event.movementY / 1000.0;
+
+	}
+
+	public static Click(leftclick : boolean) : void
+	{
+
+		console.log("click");
+
+		if (Terrain.GetBlock(Math.floor(Camera.Position[0]),Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2])) == Block.Air)
+		{
+
+			var Accuracy = 0.1;
+
+			var Delta : Float32Array = vec3.fromValues(0, 0, Accuracy);
+
+			vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
+			vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Pitch);
+
+			var MaxDistance : number = 10;
+
+			var Distance = 0;
+			var pos : Float32Array = vec3.clone(Camera.Position);
+			var lastpos : Float32Array = vec3.clone(pos);
+
+			console.log(Camera.Yaw / Math.PI);
+
+			while (Distance < MaxDistance)
+			{
+
+				vec3.add(pos, pos, Delta);
+
+				Distance += Accuracy;
+
+				var b : Block = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
+
+				if (b == null) return;
+
+				if (b != Block.Air)
+				{
+
+					console.log("break/place");
+
+					// break or place
+
+					if (leftclick) Terrain.SetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]), Block.Air);
+					else Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Block.Stone);
+
+					return;
+
+				}
+
+				lastpos = vec3.clone(pos);
+
+			}
+
+		}
+
+	}
+
+	private static Raycast() : void
+	{
+
+
 
 	}
 

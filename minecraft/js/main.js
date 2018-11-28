@@ -49,6 +49,7 @@ window.onkeyup = function (Event) {
 };
 window.onclick = function () {
     canvas.requestPointerLock();
+    Camera.Click(false);
 };
 window.onmousemove = function (Event) {
     Camera.MouseMove(Event);
@@ -101,6 +102,20 @@ var Terrain = /** @class */ (function () {
             }
         }
     };
+    Terrain.GetBlock = function (x, y, z) {
+        if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || z >= Chunk.Height)
+            return null;
+        else
+            return Terrain.Chunks[Math.floor(x / Chunk.XWidth)][Math.floor(z / Chunk.ZWidth)].GetBlock(x % Chunk.XWidth, y, z % Chunk.ZWidth);
+    };
+    Terrain.SetBlock = function (x, y, z, b) {
+        var cx = Math.floor(x / Chunk.XWidth); // chunk x
+        var cz = Math.floor(z / Chunk.ZWidth);
+        var ox = x % Chunk.XWidth;
+        var oz = z % Chunk.ZWidth;
+        Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
+        Terrain.Chunks[cx][cz].UpdateMesh();
+    };
     Terrain.XChunks = 10;
     Terrain.ZChunks = 10;
     return Terrain;
@@ -114,7 +129,8 @@ var Chunk = /** @class */ (function () {
         this.Blocks.length = Chunk.XWidth;
         var Seed = Seed1;
         var context = this;
-        for (var x = 0; x < Chunk.XWidth; x++) {
+        for (var x = 0; x < Chunk.XWidth; x++) // Initializing blocks
+         {
             context.Blocks[x] = [];
             context.Blocks[x].length = Chunk.Height;
             for (var y = 0; y < Chunk.Height; y++) {
@@ -186,11 +202,13 @@ var Chunk = /** @class */ (function () {
         for (var x = 0; x < Chunk.XWidth; x++) {
             for (var y = 0; y < Chunk.Height; y++) {
                 for (var z = 0; z < Chunk.ZWidth; z++) {
-                    if (context.Blocks[x][y][z] != Block.Air) {
+                    if (context.Blocks[x][y][z] != Block.Air) // If there's a block there, generate verticies
+                     {
                         var UVOffsetTop = 0.25 * Chunk.TopTextures.Get(context.Blocks[x][y][z]);
                         var UVOffsetSide = 0.25 * Chunk.SideTextures.Get(context.Blocks[x][y][z]);
                         var UVOffsetBottom = 0.25 * Chunk.BottomTextures.Get(context.Blocks[x][y][z]);
-                        if ((y + 1 < Chunk.Height && context.Blocks[x][y + 1][z] == Block.Air) || y == Chunk.Height - 1) {
+                        if ((y + 1 < Chunk.Height && context.Blocks[x][y + 1][z] == Block.Air) || y == Chunk.Height - 1) // Top face +y
+                         {
                             Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.25 + UVOffsetTop, 1.0);
                             Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 0.0, 1.0, 0.0, 0.25 + UVOffsetTop, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.0 + UVOffsetTop, 1.0);
@@ -198,7 +216,8 @@ var Chunk = /** @class */ (function () {
                             Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 0.0, 1.0, 0.0, 0.0 + UVOffsetTop, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.0 + UVOffsetTop, 1.0);
                         }
-                        if ((y > 0 && context.Blocks[x][y - 1][z] == Block.Air) || y == 0) {
+                        if ((y > 0 && context.Blocks[x][y - 1][z] == Block.Air) || y == 0) // Bottom face, -y
+                         {
                             Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, -1.0, 0.0, 0.25 + UVOffsetBottom, 1.0);
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 0.0, -1.0, 0.0, 0.0 + UVOffsetBottom, 1.0);
                             Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, -1.0, 0.0, 0.25 + UVOffsetBottom, 0.0);
@@ -206,7 +225,8 @@ var Chunk = /** @class */ (function () {
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 0.0, -1.0, 0.0, 0.0 + UVOffsetBottom, 1.0);
                             Verticies.push(-0.5 + x, -0.5 + y, -0.5 + z, 0.0, -1.0, 0.0, 0.0 + UVOffsetBottom, 0.0);
                         }
-                        if ((x + 1 < Chunk.XWidth && context.Blocks[x + 1][y][z] == Block.Air) || (x == Chunk.XWidth - 1 && (XPosChunk == null || XPosChunk.GetBlock(0, y, z) == Block.Air))) {
+                        if ((x + 1 < Chunk.XWidth && context.Blocks[x + 1][y][z] == Block.Air) || (x == Chunk.XWidth - 1 && (XPosChunk == null || XPosChunk.GetBlock(0, y, z) == Block.Air))) // +x face
+                         {
                             Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 1.0);
                             Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 0.0);
@@ -214,7 +234,8 @@ var Chunk = /** @class */ (function () {
                             Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 1.0);
                             Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 1.0);
                         }
-                        if ((x > 0 && context.Blocks[x - 1][y][z] == Block.Air) || (x == 0 && (XNegChunk == null || XNegChunk.GetBlock(Chunk.XWidth - 1, y, z) == Block.Air))) {
+                        if ((x > 0 && context.Blocks[x - 1][y][z] == Block.Air) || (x == 0 && (XNegChunk == null || XNegChunk.GetBlock(Chunk.XWidth - 1, y, z) == Block.Air))) // -x face
+                         {
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 1.0);
@@ -222,7 +243,8 @@ var Chunk = /** @class */ (function () {
                             Verticies.push(-0.5 + x, -0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 1.0);
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 1.0);
                         }
-                        if ((z + 1 < Chunk.ZWidth && context.Blocks[x][y][z + 1] == Block.Air) || (z == Chunk.ZWidth - 1 && (ZPosChunk == null || ZPosChunk.GetBlock(x, y, 0) == Block.Air))) {
+                        if ((z + 1 < Chunk.ZWidth && context.Blocks[x][y][z + 1] == Block.Air) || (z == Chunk.ZWidth - 1 && (ZPosChunk == null || ZPosChunk.GetBlock(x, y, 0) == Block.Air))) // +z face
+                         {
                             Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.25 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.25 + UVOffsetSide, 1.0);
@@ -230,7 +252,8 @@ var Chunk = /** @class */ (function () {
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0 + UVOffsetSide, 1.0);
                         }
-                        if ((z > 0 && context.Blocks[x][y][z - 1] == Block.Air) || (z == 0 && (ZNegChunk == null || ZNegChunk.GetBlock(x, y, Chunk.ZWidth - 1) == Block.Air))) {
+                        if ((z > 0 && context.Blocks[x][y][z - 1] == Block.Air) || (z == 0 && (ZNegChunk == null || ZNegChunk.GetBlock(x, y, Chunk.ZWidth - 1) == Block.Air))) // -z face
+                         {
                             Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0 + UVOffsetSide, 1.0);
                             Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.25 + UVOffsetSide, 0.0);
@@ -249,6 +272,9 @@ var Chunk = /** @class */ (function () {
     };
     Chunk.prototype.GetBlock = function (x, y, z) {
         return this.Blocks[x][y][z];
+    };
+    Chunk.prototype.SetBlock = function (x, y, z, b) {
+        this.Blocks[x][y][z] = b;
     };
     Chunk.prototype.Render = function () {
         Chunk.shader.UniformMat4("Model", this.ModelMatrix);
@@ -291,22 +317,26 @@ var Camera = /** @class */ (function () {
             Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
         var DeltaPosition = vec3.create();
         var Direction;
-        if (Input.IsKeyDown(87)) {
+        if (Input.IsKeyDown(87)) // w key
+         {
             Direction = vec3.fromValues(0, 0, -Camera.Speed * 0.0166667);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
-        if (Input.IsKeyDown(83)) {
+        if (Input.IsKeyDown(83)) // s key
+         {
             Direction = vec3.fromValues(0, 0, Camera.Speed * 0.0166667);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
-        if (Input.IsKeyDown(68)) {
+        if (Input.IsKeyDown(68)) // d key
+         {
             Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
-        if (Input.IsKeyDown(65)) {
+        if (Input.IsKeyDown(65)) // a key
+         {
             Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
@@ -316,6 +346,39 @@ var Camera = /** @class */ (function () {
     Camera.MouseMove = function (Event) {
         Camera.Yaw += Event.movementX / 1000.0;
         Camera.Pitch += Event.movementY / 1000.0;
+    };
+    Camera.Click = function (leftclick) {
+        console.log("click");
+        if (Terrain.GetBlock(Math.floor(Camera.Position[0]), Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2])) == Block.Air) {
+            var Accuracy = 0.1;
+            var Delta = vec3.fromValues(0, 0, Accuracy);
+            vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
+            vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Pitch);
+            var MaxDistance = 10;
+            var Distance = 0;
+            var pos = vec3.clone(Camera.Position);
+            var lastpos = vec3.clone(pos);
+            console.log(Camera.Yaw / Math.PI);
+            while (Distance < MaxDistance) {
+                vec3.add(pos, pos, Delta);
+                Distance += Accuracy;
+                var b = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
+                if (b == null)
+                    return;
+                if (b != Block.Air) {
+                    console.log("break/place");
+                    // break or place
+                    if (leftclick)
+                        Terrain.SetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]), Block.Air);
+                    else
+                        Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Block.Stone);
+                    return;
+                }
+                lastpos = vec3.clone(pos);
+            }
+        }
+    };
+    Camera.Raycast = function () {
     };
     Camera.CalculateMatrix = function () {
         var View = mat4.create();
@@ -344,7 +407,8 @@ var Input = /** @class */ (function () {
     Input.Start = function () {
         Input.DownNow.length = 256; // 256 different keycodes
         Input.DownBefore.length = 256;
-        for (var i = 0; i < 256; i++) {
+        for (var i = 0; i < 256; i++) // Fils it with false statements
+         {
             Input.DownNow[i] = false;
             Input.DownBefore[i] = false;
         }
@@ -457,7 +521,7 @@ var Texture = /** @class */ (function () {
         gl.bindTexture(gl.TEXTURE_2D, context.ID);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
         var image = new Image();
-        image.src = "/../minecraft/texture/" + Name + ".png";
+        image.src = "/../texture/" + Name + ".png";
         image.onload = function () {
             gl.bindTexture(gl.TEXTURE_2D, context.ID);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
