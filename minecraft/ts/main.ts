@@ -977,7 +977,7 @@ class Texture
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
 
 		var image = new Image();
-		image.src = "/../texture/" + Name + ".png";
+		image.src = "/../minecraft/texture/" + Name + ".png";
 
 		image.onload = function()
 		{

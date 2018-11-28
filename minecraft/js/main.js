@@ -521,7 +521,7 @@ var Texture = /** @class */ (function () {
         gl.bindTexture(gl.TEXTURE_2D, context.ID);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
         var image = new Image();
-        image.src = "/../texture/" + Name + ".png";
+        image.src = "/../minecraft/texture/" + Name + ".png";
         image.onload = function () {
             gl.bindTexture(gl.TEXTURE_2D, context.ID);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
