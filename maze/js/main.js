@@ -76,7 +76,7 @@ function divide(x1, y1, x2, y2, iters) // recursive function
 	var randomY;
 	var randomX;
 
-	if (includeX.length <= 0 && includeY <= 0) return; // exit
+	if (includeX.length <= 0 && includeY.length <= 0) return; // exit
 
 	if (includeY.length > 0)
 	{
