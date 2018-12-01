@@ -7,8 +7,8 @@ var canvas : HTMLCanvasElement;
 var gl : WebGLRenderingContext;
 var Int : any;
 
-var width : number = 10;
-var height : number = 10;
+var width : number = 20;
+var height : number = 20;
 
 var CielingHeight = 1;
 
@@ -17,6 +17,37 @@ var data : boolean[] = [];
 var MazeModel : Model;
 var MainShader : Shader;
 var MainTexture : Texture;
+
+var noclip = false;
+
+var wackymode = false;
+var timer = 0;
+
+var Cube : EndCube;
+
+var unitimer = 0;
+
+var GameOver = false;
+
+var JumpShader : Shader;
+var JumpModel : Model;
+var JumpTexture : Texture;
+
+var JumpVert = 
+[
+
+	-1, -1, -1, 0, 0, 0, 0, 0,
+	1, -1, -1, 0, 0, 0, 1, 0,
+	1, 1, -1, 0, 0, 0, 1, 1,
+
+	1, 1, -1, 0, 0, 0, 1, 1,
+	-1, 1, -1, 0, 0, 0, 0, 1,
+	-1, -1, -1, 0, 0, 0, 0, 0,
+	
+
+];
+
+var Sound : any;
 
 window.onload = function() : void
 {
@@ -35,8 +66,8 @@ window.onload = function() : void
 
 	gl.enable(gl.DEPTH_TEST);
 
-	//gl.enable(gl.CULL_FACE);
-	//gl.cullFace(gl.BACK);
+	gl.enable(gl.CULL_FACE);
+	gl.cullFace(gl.BACK);
 
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
@@ -46,8 +77,17 @@ window.onload = function() : void
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
 
 	MazeModel = new Model();
-	MainShader = new Shader("main", ["Model", "ViewProjection", "Textures", "Camera", "LightScale"]);
+	MainShader = new Shader("main", ["Model", "ViewProjection", "Textures", "Camera", "LightScale", "Timer"]);
 	MainTexture = new Texture("walls", gl.REPEAT, gl.NEAREST);
+
+	JumpModel = new Model();
+	JumpModel.UpdateMesh(JumpVert);
+	JumpShader = new Shader("jump", ["Textures", "Timer"]);
+	JumpTexture = new Texture("jump", gl.CLAMP_TO_EDGE, gl.LINEAR);
+
+	Sound = new Audio("../maze-3d/sound/scream.mp3");
+
+	Cube = new EndCube(vec3.fromValues(width - 0.5, 0.5, height - 2.5));
 
 	GenerateMaze();
 
@@ -55,7 +95,7 @@ window.onload = function() : void
 
 	Input.Start();
 
-	Camera.Position = vec3.fromValues(0, CielingHeight / 2, 0);
+	Camera.Position = vec3.fromValues(2.5, 0.25, 0.5);
 
 	Int = setInterval(Update, 16.666666667);
 
@@ -64,9 +104,23 @@ window.onload = function() : void
 function Update()
 {
 
+	if (wackymode) timer += 0.0166666667;
+	unitimer += 0.0166666667;
+
 	// Update
 
 	Camera.Update();
+
+	if (!GameOver && Math.floor(Camera.Position[0]) == width - 1 && Math.floor(Camera.Position[2]) == height - 3)
+	{
+
+		GameOver = true;
+
+		// Play scream sound
+
+		Sound.play();
+
+	}
 
 	// End of Update, render
 
@@ -81,6 +135,22 @@ function Update()
 
 	RenderMaze();
 
+	Cube.Render();
+
+	if (GameOver) // Render jump
+	{
+
+		JumpShader.Use();
+
+		JumpShader.UniformInt("Texture", 0);
+		JumpShader.UniformFloat("Timer", unitimer);
+
+		JumpTexture.Use(0);
+
+		JumpModel.Render();
+
+	}
+
 }
 
 window.onunload = function() : void
@@ -89,6 +159,10 @@ window.onunload = function() : void
 	MainTexture.Delete();
 	MainShader.Delete();
 	MazeModel.Delete();
+	EndCube.Delete();
+	JumpModel.Delete();
+	JumpShader.Delete();
+	JumpTexture.Delete();
 
 }
 
@@ -272,28 +346,6 @@ function genmesh()
 
 	var Verticies : number[] = [];
 
-	// Floor
-
-	Verticies.push(0, 0, 0, 0, 1, 0, 0, 0);
-	Verticies.push(width, 0, 0, 0, 1, 0, 0.25, 0);
-	Verticies.push(width, 0, height, 0, 1, 0, 0.25, 0.25);
-
-
-	Verticies.push(0, 0, height, 0, 1, 0, 0, 0.25);
-	Verticies.push(width, 0, height, 0, 1, 0, 0.25, 0.25);
-	Verticies.push(0, 0, 0, 0, 1, 0, 0, 0);
-
-	// Cieling
-
-	Verticies.push(0, CielingHeight, 0, 0, 1, 0, 0, 0);
-	Verticies.push(width, CielingHeight, 0, 0, 1, 0, 0.25, 0);
-	Verticies.push(width, CielingHeight, height, 0, 1, 0, 0.25, 0.25);
-
-
-	Verticies.push(0, CielingHeight, height, 0, 1, 0, 0, 0.25);
-	Verticies.push(width, CielingHeight, height, 0, 1, 0, 0.25, 0.25);
-	Verticies.push(0, CielingHeight, 0, 0, 1, 0, 0, 0);
-
 	// Walls
 
 	for (var x : number = 0; x < width; x++) // switch dimensions from the generation part, made in different parts RIP xy to xz
@@ -305,7 +357,77 @@ function genmesh()
 			if (!data[(height * x) + z]) // Add the four possible walls if empty
 			{
 
-				
+				// Floor
+
+				Verticies.push(x, 0, z, 0, 1, 0, 0, 0);
+				Verticies.push(x + 1, 0, z + 1, 0, 1, 0, 0.5, 0.5);
+				Verticies.push(x + 1, 0, z, 0, 1, 0, 0.5, 0);
+
+				Verticies.push(x, 0, z + 1, 0, 1, 0, 0, 0.5);
+				Verticies.push(x + 1, 0, z + 1, 0, 1, 0, 0.5, 0.5);
+				Verticies.push(x, 0, z, 0, 1, 0, 0, 0);
+
+				// Cieling
+
+				Verticies.push(x, CielingHeight, z, 0, -1, 0, 0, 0.5);
+				Verticies.push(x + 1, CielingHeight, z, 0, -1, 0, 0.5, 0.5);
+				Verticies.push(x + 1, CielingHeight, z + 1, 0, -1, 0, 0.5, 1);
+
+				Verticies.push(x, CielingHeight, z + 1, 0, -1, 0, 0, 1);
+				Verticies.push(x, CielingHeight, z, 0, -1, 0, 0, 0.5);
+				Verticies.push(x + 1, CielingHeight, z + 1, 0, -1, 0, 0.5, 1);
+
+				if (x == 0 || data[(height * (x - 1)) + z])
+				{
+
+					Verticies.push(x, 0, z, 1, 0, 0, 1, 0.5);
+					Verticies.push(x, CielingHeight, z + 1, 1, 0, 0, 0.5, 1);
+					Verticies.push(x, 0, z + 1, 1, 0, 0, 0.5, 0.5);
+
+					Verticies.push(x, 0, z, 1, 0, 0, 1, 0.5);
+					Verticies.push(x, CielingHeight, z, 1, 0, 0, 1, 1);
+					Verticies.push(x, CielingHeight, z + 1, 1, 0, 0, 0.5, 1);
+
+				}
+
+				if (x == width - 1 || data[(height * (x + 1)) + z])
+				{
+
+					Verticies.push(x + 1, 0, z, -1, 0, 0, 0.5, 0.5);
+					Verticies.push(x + 1, 0, z + 1, -1, 0, 0, 1, 0.5);
+					Verticies.push(x + 1, CielingHeight, z + 1, -1, 0, 0, 1, 1);
+
+					Verticies.push(x + 1, 0, z, -1, 0, 0, 0.5, 0.5);
+					Verticies.push(x + 1, CielingHeight, z + 1, -1, 0, 0, 1, 1);
+					Verticies.push(x + 1, CielingHeight, z, -1, 0, 0, 0.5, 1);
+					
+				}
+
+				if (z == 0 || data[(height * x) + z - 1])
+				{
+
+					Verticies.push(x, 0, z, 0, 0, 1, 0.5, 0.5);
+					Verticies.push(x + 1, 0, z, 0, 0, 1, 1, 0.5);
+					Verticies.push(x + 1, CielingHeight, z, 0, 0, 1, 1, 1);
+
+					Verticies.push(x, CielingHeight, z, 0, 0, 1, 0.5, 1);
+					Verticies.push(x, 0, z, 0, 0, 1, 0.5, 0.5);
+					Verticies.push(x + 1, CielingHeight, z, 0, 0, 1, 1, 1);
+
+				}
+
+				if (z == height - 1 || data[(height * x) + z + 1])
+				{
+
+					Verticies.push(x, 0, z + 1, 0, 0, -1, 1, 0.5);
+					Verticies.push(x + 1, CielingHeight, z + 1, 0, 0, -1, 0.5, 1);
+					Verticies.push(x + 1, 0, z + 1, 0, 0, -1, 0.5, 0.5);
+
+					Verticies.push(x, CielingHeight, z + 1, 0, 0, -1, 1, 1);
+					Verticies.push(x + 1, CielingHeight, z + 1, 0, 0, -1, 0.5, 1);
+					Verticies.push(x, 0, z + 1, 0, 0, -1, 1, 0.5);
+					
+				}
 
 			}
 
@@ -327,6 +449,7 @@ function RenderMaze()
 	MainShader.UniformMat4("ViewProjection", Camera.ViewProjection);
 	MainShader.UniformMat4("Model", mat4.create());
 	MainShader.UniformFloat("LightScale", 1);
+	MainShader.UniformFloat("Timer", timer);
 	MainShader.UniformVec3("Camera", Camera.Position);
 
 	MainTexture.Use(0);
@@ -335,17 +458,147 @@ function RenderMaze()
 	
 }
 
+class EndCube
+{
+
+	private static VData =
+	[
+
+		// bottom y
+
+		-1, -1, -1, 0, -1, 0, 0.5, 0,
+		1, -1, -1, 0, -1, 0, 1, 0,
+		-1, -1, 1, 0, -1, 0, 0.5, 0.5,
+
+		-1, -1, 1, 0, -1, 0, 0.5, 0.5,
+		1, -1, -1, 0, -1, 0, 1, 0,
+		1, -1, 1, 0, -1, 0, 1, 0.5,
+
+		// top
+
+		-1, 1, -1, 0, 1, 0, 1, 0,
+		-1, 1, 1, 0, 1, 0, 1, 0.5,
+		1, 1, -1, 0, 1, 0, 0.5, 0,
+
+		-1, 1, 1, 0, 1, 0, 1, 0.5,
+		1, 1, 1, 0, 1, 0, 0.5, 0.5,
+		1, 1, -1, 0, 1, 0, 0.5, 0,
+
+		// left x
+
+		-1, -1, -1, -1, 0, 0, 1, 0,
+		-1, -1, 1, -1, 0, 0, 1, 0.5,
+		-1, 1, -1, -1, 0, 0, 0.5, 0,
+
+		-1, -1, 1, -1, 0, 0, 1, 0.5,
+		-1, 1, 1, -1, 0, 0, 0.5, 0.5,
+		-1, 1, -1, -1, 0, 0, 0.5, 0,
+
+		// right
+
+		1, -1, -1, 1, 0, 0, 0.5, 0,
+		1, 1, -1, 1, 0, 0, 1, 0,
+		1, -1, 1, 1, 0, 0, 0.5, 0.5,
+
+		1, -1, 1, 1, 0, 0, 0.5, 0.5,
+		1, 1, -1, 1, 0, 0, 1, 0,
+		1, 1, 1, 1, 0, 0, 1, 0.5,
+
+		// front z
+
+		-1, -1, -1, 0, 0, -1, 1, 0,
+		-1, 1, -1, 0, 0, -1, 1, 0.5,
+		1, -1, -1, 0, 0, -1, 0.5, 0,
+
+		1, -1, -1, 0, 0, -1, 0.5, 0,
+		-1, 1, -1, 0, 0, -1, 1, 0.5,
+		1, 1, -1, 0, 0, -1, 0.5, 0.5,
+
+		// back
+
+		-1, -1, 1, 0, 0, 1, 0.5, 0,
+		1, -1, 1, 0, 0, 1, 1, 0,
+		-1, 1, 1, 0, 0, 1, 0.5, 0.5,
+
+		1, -1, 1, 0, 0, 1, 1, 0,
+		1, 1, 1, 0, 0, 1, 1, 0.5,
+		-1, 1, 1, 0, 0, 1, 0.5, 0.5
+
+	];
+
+	private static CubeModel = null;
+
+	private Position;
+	private static Scale = 0.2;
+
+	constructor(newpos : Float32Array)
+	{
+
+		this.Position = newpos;
+
+		if (EndCube.CubeModel == null)
+		{
+
+			EndCube.CubeModel = new Model();
+			EndCube.CubeModel.UpdateMesh(EndCube.VData);
+
+		}
+
+	}
+
+	public Render() : void
+	{
+
+		var ModelMatrix : Float32Array = mat4.create();
+		var scal : Float32Array = mat4.create();
+		var rot : Float32Array = mat4.create();
+		var c : Float32Array = mat4.create();
+
+		mat4.fromTranslation(ModelMatrix, this.Position);
+		mat4.fromScaling(scal, vec3.fromValues(EndCube.Scale, EndCube.Scale, EndCube.Scale));
+		mat4.fromRotation(rot, unitimer, vec3.fromValues(1, 1, 1))
+
+		mat4.multiply(c, rot, scal);
+		mat4.multiply(ModelMatrix, ModelMatrix, c);
+
+		MainShader.Use();
+
+		MainShader.UniformInt("Texture", 0);
+
+		MainShader.UniformMat4("ViewProjection", Camera.ViewProjection);
+		MainShader.UniformMat4("Model", ModelMatrix);
+		MainShader.UniformFloat("LightScale", 1);
+		MainShader.UniformFloat("Timer", timer);
+		MainShader.UniformVec3("Camera", Camera.Position);
+
+		MainTexture.Use(0);
+
+		EndCube.CubeModel.Render();
+
+	}
+
+	public static Delete()
+	{
+
+		EndCube.CubeModel.Delete();
+
+	}
+
+}
+
 class Camera
 {
 
-	private static Speed : number = 1.0;
+	private static Speed : number = 0.8;
 	private static TwoPi : number = 2.0 * Math.PI;
 	private static PiOverTwo : number = Math.PI / 2.0;
 
 	public static Position : Float32Array;
 
-	public static Yaw : number = 3 * Math.PI / 4.0;
+	public static Yaw : number = Math.PI;
 	public static Pitch : number = 0;
+
+	public static CollisionAccuracy = 0.1;
 
 	public static ViewProjection : Float32Array;
 
@@ -406,6 +659,34 @@ class Camera
 		}
 
 		vec3.add(Camera.Position, Camera.Position, DeltaPosition);
+
+		// Crappy collision detection
+
+		if (!noclip)
+		{
+
+			Camera.Speed = 0.8;
+
+			var Backwards : Float32Array = vec3.clone(DeltaPosition);
+			vec3.scale(Backwards, Backwards, -Camera.CollisionAccuracy);
+
+			while (Camera.Position[0] < 0 || Camera.Position[2] < 0 || Camera.Position[0] > width || Camera.Position[2] > height || data[(height * Math.floor(Camera.Position[0])) + Math.floor(Camera.Position[2])])
+			{
+
+				vec3.add(Camera.Position, Camera.Position, Backwards);
+
+			}
+
+		}
+		else // hax
+		{
+
+			Camera.Speed = 5;
+
+			if (Input.IsKeyDown(32)) Camera.Position[1] += Camera.Speed * 0.0166667; // space key
+			if (Input.IsKeyDown(16)) Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
+
+		}
 
 	}
 

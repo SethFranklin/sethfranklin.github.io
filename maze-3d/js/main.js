@@ -2,13 +2,31 @@
 var canvas;
 var gl;
 var Int;
-var width = 10;
-var height = 10;
+var width = 20;
+var height = 20;
 var CielingHeight = 1;
 var data = [];
 var MazeModel;
 var MainShader;
 var MainTexture;
+var noclip = false;
+var wackymode = false;
+var timer = 0;
+var Cube;
+var unitimer = 0;
+var GameOver = false;
+var JumpShader;
+var JumpModel;
+var JumpTexture;
+var JumpVert = [
+    -1, -1, -1, 0, 0, 0, 0, 0,
+    1, -1, -1, 0, 0, 0, 1, 0,
+    1, 1, -1, 0, 0, 0, 1, 1,
+    1, 1, -1, 0, 0, 0, 1, 1,
+    -1, 1, -1, 0, 0, 0, 0, 1,
+    -1, -1, -1, 0, 0, 0, 0, 0,
+];
+var Sound;
 window.onload = function () {
     canvas = document.getElementById("canvas");
     gl = canvas.getContext("webgl");
@@ -17,24 +35,38 @@ window.onload = function () {
         return;
     }
     gl.enable(gl.DEPTH_TEST);
-    //gl.enable(gl.CULL_FACE);
-    //gl.cullFace(gl.BACK);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     gl.viewport(0, 0, canvas.width, canvas.height);
     canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
     MazeModel = new Model();
-    MainShader = new Shader("main", ["Model", "ViewProjection", "Textures", "Camera", "LightScale"]);
+    MainShader = new Shader("main", ["Model", "ViewProjection", "Textures", "Camera", "LightScale", "Timer"]);
     MainTexture = new Texture("walls", gl.REPEAT, gl.NEAREST);
+    JumpModel = new Model();
+    JumpModel.UpdateMesh(JumpVert);
+    JumpShader = new Shader("jump", ["Textures", "Timer"]);
+    JumpTexture = new Texture("jump", gl.CLAMP_TO_EDGE, gl.LINEAR);
+    Sound = new Audio("../maze-3d/sound/scream.mp3");
+    Cube = new EndCube(vec3.fromValues(width - 0.5, 0.5, height - 2.5));
     GenerateMaze();
     Camera.Generate();
     Input.Start();
-    Camera.Position = vec3.fromValues(0, CielingHeight / 2, 0);
+    Camera.Position = vec3.fromValues(2.5, 0.25, 0.5);
     Int = setInterval(Update, 16.666666667);
 };
 function Update() {
+    if (wackymode)
+        timer += 0.0166666667;
+    unitimer += 0.0166666667;
     // Update
     Camera.Update();
+    if (!GameOver && Math.floor(Camera.Position[0]) == width - 1 && Math.floor(Camera.Position[2]) == height - 3) {
+        GameOver = true;
+        // Play scream sound
+        Sound.play();
+    }
     // End of Update, render
     Input.PushBackInputs();
     Camera.CalculateMatrix();
@@ -42,11 +74,24 @@ function Update() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     // Render maze
     RenderMaze();
+    Cube.Render();
+    if (GameOver) // Render jump
+     {
+        JumpShader.Use();
+        JumpShader.UniformInt("Texture", 0);
+        JumpShader.UniformFloat("Timer", unitimer);
+        JumpTexture.Use(0);
+        JumpModel.Render();
+    }
 }
 window.onunload = function () {
     MainTexture.Delete();
     MainShader.Delete();
     MazeModel.Delete();
+    EndCube.Delete();
+    JumpModel.Delete();
+    JumpShader.Delete();
+    JumpTexture.Delete();
 };
 window.onresize = function () {
     canvas.width = window.innerWidth;
@@ -143,24 +188,59 @@ function divide(x1, y1, x2, y2, iters) {
 }
 function genmesh() {
     var Verticies = [];
-    // Floor
-    Verticies.push(0, 0, 0, 0, 1, 0, 0, 0);
-    Verticies.push(width, 0, 0, 0, 1, 0, 0.25, 0);
-    Verticies.push(width, 0, height, 0, 1, 0, 0.25, 0.25);
-    Verticies.push(0, 0, height, 0, 1, 0, 0, 0.25);
-    Verticies.push(width, 0, height, 0, 1, 0, 0.25, 0.25);
-    Verticies.push(0, 0, 0, 0, 1, 0, 0, 0);
-    // Cieling
-    Verticies.push(0, CielingHeight, 0, 0, 1, 0, 0, 0);
-    Verticies.push(width, CielingHeight, 0, 0, 1, 0, 0.25, 0);
-    Verticies.push(width, CielingHeight, height, 0, 1, 0, 0.25, 0.25);
-    Verticies.push(0, CielingHeight, height, 0, 1, 0, 0, 0.25);
-    Verticies.push(width, CielingHeight, height, 0, 1, 0, 0.25, 0.25);
-    Verticies.push(0, CielingHeight, 0, 0, 1, 0, 0, 0);
     // Walls
     for (var x = 0; x < width; x++) // switch dimensions from the generation part, made in different parts RIP xy to xz
      {
         for (var z = 0; z < height; z++) {
+            if (!data[(height * x) + z]) // Add the four possible walls if empty
+             {
+                // Floor
+                Verticies.push(x, 0, z, 0, 1, 0, 0, 0);
+                Verticies.push(x + 1, 0, z + 1, 0, 1, 0, 0.5, 0.5);
+                Verticies.push(x + 1, 0, z, 0, 1, 0, 0.5, 0);
+                Verticies.push(x, 0, z + 1, 0, 1, 0, 0, 0.5);
+                Verticies.push(x + 1, 0, z + 1, 0, 1, 0, 0.5, 0.5);
+                Verticies.push(x, 0, z, 0, 1, 0, 0, 0);
+                // Cieling
+                Verticies.push(x, CielingHeight, z, 0, -1, 0, 0, 0.5);
+                Verticies.push(x + 1, CielingHeight, z, 0, -1, 0, 0.5, 0.5);
+                Verticies.push(x + 1, CielingHeight, z + 1, 0, -1, 0, 0.5, 1);
+                Verticies.push(x, CielingHeight, z + 1, 0, -1, 0, 0, 1);
+                Verticies.push(x, CielingHeight, z, 0, -1, 0, 0, 0.5);
+                Verticies.push(x + 1, CielingHeight, z + 1, 0, -1, 0, 0.5, 1);
+                if (x == 0 || data[(height * (x - 1)) + z]) {
+                    Verticies.push(x, 0, z, 1, 0, 0, 1, 0.5);
+                    Verticies.push(x, CielingHeight, z + 1, 1, 0, 0, 0.5, 1);
+                    Verticies.push(x, 0, z + 1, 1, 0, 0, 0.5, 0.5);
+                    Verticies.push(x, 0, z, 1, 0, 0, 1, 0.5);
+                    Verticies.push(x, CielingHeight, z, 1, 0, 0, 1, 1);
+                    Verticies.push(x, CielingHeight, z + 1, 1, 0, 0, 0.5, 1);
+                }
+                if (x == width - 1 || data[(height * (x + 1)) + z]) {
+                    Verticies.push(x + 1, 0, z, -1, 0, 0, 0.5, 0.5);
+                    Verticies.push(x + 1, 0, z + 1, -1, 0, 0, 1, 0.5);
+                    Verticies.push(x + 1, CielingHeight, z + 1, -1, 0, 0, 1, 1);
+                    Verticies.push(x + 1, 0, z, -1, 0, 0, 0.5, 0.5);
+                    Verticies.push(x + 1, CielingHeight, z + 1, -1, 0, 0, 1, 1);
+                    Verticies.push(x + 1, CielingHeight, z, -1, 0, 0, 0.5, 1);
+                }
+                if (z == 0 || data[(height * x) + z - 1]) {
+                    Verticies.push(x, 0, z, 0, 0, 1, 0.5, 0.5);
+                    Verticies.push(x + 1, 0, z, 0, 0, 1, 1, 0.5);
+                    Verticies.push(x + 1, CielingHeight, z, 0, 0, 1, 1, 1);
+                    Verticies.push(x, CielingHeight, z, 0, 0, 1, 0.5, 1);
+                    Verticies.push(x, 0, z, 0, 0, 1, 0.5, 0.5);
+                    Verticies.push(x + 1, CielingHeight, z, 0, 0, 1, 1, 1);
+                }
+                if (z == height - 1 || data[(height * x) + z + 1]) {
+                    Verticies.push(x, 0, z + 1, 0, 0, -1, 1, 0.5);
+                    Verticies.push(x + 1, CielingHeight, z + 1, 0, 0, -1, 0.5, 1);
+                    Verticies.push(x + 1, 0, z + 1, 0, 0, -1, 0.5, 0.5);
+                    Verticies.push(x, CielingHeight, z + 1, 0, 0, -1, 1, 1);
+                    Verticies.push(x + 1, CielingHeight, z + 1, 0, 0, -1, 0.5, 1);
+                    Verticies.push(x, 0, z + 1, 0, 0, -1, 1, 0.5);
+                }
+            }
         }
     }
     MazeModel.UpdateMesh(Verticies);
@@ -171,10 +251,90 @@ function RenderMaze() {
     MainShader.UniformMat4("ViewProjection", Camera.ViewProjection);
     MainShader.UniformMat4("Model", mat4.create());
     MainShader.UniformFloat("LightScale", 1);
+    MainShader.UniformFloat("Timer", timer);
     MainShader.UniformVec3("Camera", Camera.Position);
     MainTexture.Use(0);
     MazeModel.Render();
 }
+var EndCube = /** @class */ (function () {
+    function EndCube(newpos) {
+        this.Position = newpos;
+        if (EndCube.CubeModel == null) {
+            EndCube.CubeModel = new Model();
+            EndCube.CubeModel.UpdateMesh(EndCube.VData);
+        }
+    }
+    EndCube.prototype.Render = function () {
+        var ModelMatrix = mat4.create();
+        var scal = mat4.create();
+        var rot = mat4.create();
+        var c = mat4.create();
+        mat4.fromTranslation(ModelMatrix, this.Position);
+        mat4.fromScaling(scal, vec3.fromValues(EndCube.Scale, EndCube.Scale, EndCube.Scale));
+        mat4.fromRotation(rot, unitimer, vec3.fromValues(1, 1, 1));
+        mat4.multiply(c, rot, scal);
+        mat4.multiply(ModelMatrix, ModelMatrix, c);
+        MainShader.Use();
+        MainShader.UniformInt("Texture", 0);
+        MainShader.UniformMat4("ViewProjection", Camera.ViewProjection);
+        MainShader.UniformMat4("Model", ModelMatrix);
+        MainShader.UniformFloat("LightScale", 1);
+        MainShader.UniformFloat("Timer", timer);
+        MainShader.UniformVec3("Camera", Camera.Position);
+        MainTexture.Use(0);
+        EndCube.CubeModel.Render();
+    };
+    EndCube.Delete = function () {
+        EndCube.CubeModel.Delete();
+    };
+    EndCube.VData = [
+        // bottom y
+        -1, -1, -1, 0, -1, 0, 0.5, 0,
+        1, -1, -1, 0, -1, 0, 1, 0,
+        -1, -1, 1, 0, -1, 0, 0.5, 0.5,
+        -1, -1, 1, 0, -1, 0, 0.5, 0.5,
+        1, -1, -1, 0, -1, 0, 1, 0,
+        1, -1, 1, 0, -1, 0, 1, 0.5,
+        // top
+        -1, 1, -1, 0, 1, 0, 1, 0,
+        -1, 1, 1, 0, 1, 0, 1, 0.5,
+        1, 1, -1, 0, 1, 0, 0.5, 0,
+        -1, 1, 1, 0, 1, 0, 1, 0.5,
+        1, 1, 1, 0, 1, 0, 0.5, 0.5,
+        1, 1, -1, 0, 1, 0, 0.5, 0,
+        // left x
+        -1, -1, -1, -1, 0, 0, 1, 0,
+        -1, -1, 1, -1, 0, 0, 1, 0.5,
+        -1, 1, -1, -1, 0, 0, 0.5, 0,
+        -1, -1, 1, -1, 0, 0, 1, 0.5,
+        -1, 1, 1, -1, 0, 0, 0.5, 0.5,
+        -1, 1, -1, -1, 0, 0, 0.5, 0,
+        // right
+        1, -1, -1, 1, 0, 0, 0.5, 0,
+        1, 1, -1, 1, 0, 0, 1, 0,
+        1, -1, 1, 1, 0, 0, 0.5, 0.5,
+        1, -1, 1, 1, 0, 0, 0.5, 0.5,
+        1, 1, -1, 1, 0, 0, 1, 0,
+        1, 1, 1, 1, 0, 0, 1, 0.5,
+        // front z
+        -1, -1, -1, 0, 0, -1, 1, 0,
+        -1, 1, -1, 0, 0, -1, 1, 0.5,
+        1, -1, -1, 0, 0, -1, 0.5, 0,
+        1, -1, -1, 0, 0, -1, 0.5, 0,
+        -1, 1, -1, 0, 0, -1, 1, 0.5,
+        1, 1, -1, 0, 0, -1, 0.5, 0.5,
+        // back
+        -1, -1, 1, 0, 0, 1, 0.5, 0,
+        1, -1, 1, 0, 0, 1, 1, 0,
+        -1, 1, 1, 0, 0, 1, 0.5, 0.5,
+        1, -1, 1, 0, 0, 1, 1, 0,
+        1, 1, 1, 0, 0, 1, 1, 0.5,
+        -1, 1, 1, 0, 0, 1, 0.5, 0.5
+    ];
+    EndCube.CubeModel = null;
+    EndCube.Scale = 0.2;
+    return EndCube;
+}());
 var Camera = /** @class */ (function () {
     function Camera() {
     }
@@ -216,6 +376,23 @@ var Camera = /** @class */ (function () {
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         vec3.add(Camera.Position, Camera.Position, DeltaPosition);
+        // Crappy collision detection
+        if (!noclip) {
+            Camera.Speed = 0.8;
+            var Backwards = vec3.clone(DeltaPosition);
+            vec3.scale(Backwards, Backwards, -Camera.CollisionAccuracy);
+            while (Camera.Position[0] < 0 || Camera.Position[2] < 0 || Camera.Position[0] > width || Camera.Position[2] > height || data[(height * Math.floor(Camera.Position[0])) + Math.floor(Camera.Position[2])]) {
+                vec3.add(Camera.Position, Camera.Position, Backwards);
+            }
+        }
+        else // hax
+         {
+            Camera.Speed = 5;
+            if (Input.IsKeyDown(32))
+                Camera.Position[1] += Camera.Speed * 0.0166667; // space key
+            if (Input.IsKeyDown(16))
+                Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
+        }
     };
     Camera.MouseMove = function (Event) {
         Camera.Yaw += Event.movementX / 1000.0;
@@ -235,11 +412,12 @@ var Camera = /** @class */ (function () {
         mat4.perspective(Projection, Math.PI / 2, canvas.width / canvas.height, 0.1, 1000.0);
         mat4.multiply(Camera.ViewProjection, Projection, View);
     };
-    Camera.Speed = 1.0;
+    Camera.Speed = 0.8;
     Camera.TwoPi = 2.0 * Math.PI;
     Camera.PiOverTwo = Math.PI / 2.0;
-    Camera.Yaw = 3 * Math.PI / 4.0;
+    Camera.Yaw = Math.PI;
     Camera.Pitch = 0;
+    Camera.CollisionAccuracy = 0.1;
     return Camera;
 }());
 var Input = /** @class */ (function () {

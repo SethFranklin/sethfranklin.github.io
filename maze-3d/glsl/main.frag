@@ -10,5 +10,6 @@ void main()
 {
 
 	gl_FragColor = vec4(LightScale * texture2D(Textures, FragUV).xyz / length(Camera - FragPos), 1.0);
+	//gl_FragColor = texture2D(Textures, FragUV);
 
 }
