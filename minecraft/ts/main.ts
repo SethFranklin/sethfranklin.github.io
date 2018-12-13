@@ -65,6 +65,8 @@ function Update()
 
 	Terrain.Render();
 
+	Camera.RenderCrosshair();
+
 }
 
 window.onunload = function() : void
@@ -98,12 +100,12 @@ window.onkeyup = function(Event) : void
 	
 }
 
-window.onclick = function() : void
+window.onclick = function(Event) : void
 {
 
 	canvas.requestPointerLock();
 
-	Camera.Click(false);
+	Camera.Click(Event.which != 3);
 	
 }
 
@@ -151,7 +153,7 @@ class Terrain
 	public static Generate(Seed1 : number, Seed2 : number) : void
 	{
 
-		noise.seed(Seed1);
+		//noise.seed(Seed1);
 
 		Terrain.Chunks = [];
 		Terrain.Chunks.length = Terrain.XChunks;
@@ -220,13 +222,15 @@ class Terrain
 	public static GetBlock(x : number, y : number, z : number) : Block
 	{
 
-		if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || z >= Chunk.Height) return null;
+		if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || y >= Chunk.Height) return null;
 		else return Terrain.Chunks[Math.floor(x / Chunk.XWidth)][Math.floor(z / Chunk.ZWidth)].GetBlock(x % Chunk.XWidth, y, z % Chunk.ZWidth);
 
 	}
 
 	public static SetBlock(x : number, y : number , z : number, b : Block) : void
 	{
+
+		if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || y >= Chunk.Height) return;
 
 		var cx = Math.floor(x / Chunk.XWidth); // chunk x
 		var cz = Math.floor(z / Chunk.ZWidth);
@@ -237,6 +241,12 @@ class Terrain
 		Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
 
 		Terrain.Chunks[cx][cz].UpdateMesh();
+
+		if (cx != 0 && ox == 0) Terrain.Chunks[cx - 1][cz].UpdateMesh();
+		if (cx != Terrain.XChunks - 1 && ox == Chunk.XWidth - 1) Terrain.Chunks[cx + 1][cz].UpdateMesh();
+
+		if (cz != 0 && oz == 0) Terrain.Chunks[cx][cz - 1].UpdateMesh();
+		if (cz != Terrain.ZChunks - 1 && oz == Chunk.ZWidth - 1) Terrain.Chunks[cx][cz + 1].UpdateMesh();
 
 	}
 
@@ -258,13 +268,13 @@ class Chunk
 
 	private Blocks : Block[][][]; // goes x, y, z
 
-	private VBO : WebGLBuffer;
-	private VertCount : number;
+	private TerrainModel : Model;
+
 	private ModelMatrix : Float32Array;
 
-	private static BottomTextures : Dictionary<Block, number>; // @TODO: stop using my dumbass dictionary class
-	private static SideTextures : Dictionary<Block, number>;
-	private static TopTextures : Dictionary<Block, number>;
+	private static BottomTextures;
+	private static SideTextures;
+	private static TopTextures;
 
 	public constructor(newx : number, newz : number, Seed1 : number)
 	{
@@ -324,7 +334,7 @@ class Chunk
 				GrassCount = 1;
 				DirtCount = 5;
 
-				while (h > 0)
+				while (h >= 0)
 				{
 
 					if (GrassCount > 0)
@@ -351,28 +361,26 @@ class Chunk
 
 		}
 
-		// Initializing Meshes (will be generated later on)
-
-		this.VBO = gl.createBuffer();
+		this.TerrainModel = new Model();
 
 		this.ModelMatrix = mat4.create();
 
 		mat4.fromTranslation(this.ModelMatrix, vec3.fromValues(this.XPosition * Chunk.XWidth, 0, this.ZPosition * Chunk.ZWidth));
 
-		Chunk.TopTextures = new Dictionary<Block, number>();
-		Chunk.TopTextures.Push(Block.Stone, 3);
-		Chunk.TopTextures.Push(Block.Dirt, 2);
-		Chunk.TopTextures.Push(Block.Grass, 0);
+		Chunk.TopTextures = {};
+		Chunk.TopTextures[Block.Stone] = 3;
+		Chunk.TopTextures[Block.Dirt] = 2;
+		Chunk.TopTextures[Block.Grass] = 0;
 
-		Chunk.BottomTextures = new Dictionary<Block, number>();
-		Chunk.BottomTextures.Push(Block.Stone, 3);
-		Chunk.BottomTextures.Push(Block.Dirt, 2);
-		Chunk.BottomTextures.Push(Block.Grass, 2);
+		Chunk.BottomTextures = {};
+		Chunk.BottomTextures[Block.Stone] = 3;
+		Chunk.BottomTextures[Block.Dirt] = 2;
+		Chunk.BottomTextures[Block.Grass] = 3;
 
-		Chunk.SideTextures = new Dictionary<Block, number>();
-		Chunk.SideTextures.Push(Block.Stone, 3);
-		Chunk.SideTextures.Push(Block.Dirt, 2);
-		Chunk.SideTextures.Push(Block.Grass, 1);
+		Chunk.SideTextures = {};
+		Chunk.SideTextures[Block.Stone] = 3;
+		Chunk.SideTextures[Block.Dirt] = 2;
+		Chunk.SideTextures[Block.Grass] = 1;
 
 	}
 
@@ -416,9 +424,9 @@ class Chunk
 					if (context.Blocks[x][y][z] != Block.Air) // If there's a block there, generate verticies
 					{
 
-						var UVOffsetTop : number = 0.25 * Chunk.TopTextures.Get(context.Blocks[x][y][z]);
-						var UVOffsetSide : number = 0.25 * Chunk.SideTextures.Get(context.Blocks[x][y][z]);
-						var UVOffsetBottom : number = 0.25 * Chunk.BottomTextures.Get(context.Blocks[x][y][z]);
+						var UVOffsetTop : number = 0.25 * Chunk.TopTextures[context.Blocks[x][y][z]];
+						var UVOffsetSide : number = 0.25 * Chunk.SideTextures[context.Blocks[x][y][z]];
+						var UVOffsetBottom : number = 0.25 * Chunk.BottomTextures[context.Blocks[x][y][z]];
 
 						if ((y + 1 < Chunk.Height && context.Blocks[x][y + 1][z] == Block.Air) || y == Chunk.Height - 1) // Top face +y
 						{
@@ -506,11 +514,7 @@ class Chunk
 
 		}
 
-		this.VertCount = Verticies.length / 8;
-
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Verticies), gl.STATIC_DRAW);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		this.TerrainModel.UpdateMesh(Verticies);
 
 	}
 
@@ -533,28 +537,14 @@ class Chunk
 
 		Chunk.shader.UniformMat4("Model", this.ModelMatrix);
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
-
-		gl.enableVertexAttribArray(Chunk.shader.PositionLocation);
-		gl.vertexAttribPointer(Chunk.shader.PositionLocation, 3, gl.FLOAT, false, 32, 0);
-
-		gl.enableVertexAttribArray(Chunk.shader.NormalLocation);
-		gl.vertexAttribPointer(Chunk.shader.NormalLocation, 3, gl.FLOAT, false, 32, 12);
-
-		gl.enableVertexAttribArray(Chunk.shader.UVLocation);
-		gl.vertexAttribPointer(Chunk.shader.UVLocation, 2, gl.FLOAT, false, 32, 24);
-
-		gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
-
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		this.TerrainModel.Render(Chunk.shader);
 
 	}
 
 	public Delete() : void
 	{
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		gl.deleteBuffer(this.VBO);
+		this.TerrainModel.Delete();
 
 	}
 
@@ -574,11 +564,38 @@ class Camera
 
 	public static ViewProjection : Float32Array;
 
+	private static CursorTexture : Texture;
+	private static CursorModel : Model;
+	public static CursorShader : Shader;
+
+	private static BlockPlace : Block;
+
+	private static CursorData : number[] = 
+	[
+
+		-1, -1, -1, 0, 0, 0, 0, 0,
+		1, -1, -1, 0, 0, 0, 1, 0,
+		1, 1, -1, 0, 0, 0, 1, 1,
+
+		1, 1, -1, 0, 0, 0, 1, 1,
+		-1, 1, -1, 0, 0, 0, 0, 1,
+		-1, -1, -1, 0, 0, 0, 0, 0,
+		
+
+	];
+
 	public static Generate() : void
 	{
 
-		this.Position = vec3.create();
-		this.ViewProjection = mat4.create();
+		Camera.Position = vec3.create();
+		Camera.ViewProjection = mat4.create();
+
+		Camera.BlockPlace = Block.Stone;
+
+		Camera.CursorTexture = new Texture("cursor", gl.CLAMP_TO_EDGE, gl.NEAREST);
+		Camera.CursorModel = new Model();
+		Camera.CursorModel.UpdateMesh(Camera.CursorData);
+		Camera.CursorShader = new Shader("cursor", ["Textures", "Scale", "Aspect"]);
 
 	}
 
@@ -593,6 +610,10 @@ class Camera
 
 		if (Input.IsKeyDown(32)) Camera.Position[1] += Camera.Speed * 0.0166667; // space key
 		if (Input.IsKeyDown(16)) Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
+
+		if (Input.IsKeyDown(49)) Camera.BlockPlace = Block.Stone;
+		if (Input.IsKeyDown(50)) Camera.BlockPlace = Block.Dirt;
+		if (Input.IsKeyDown(51)) Camera.BlockPlace = Block.Grass;
 
 		var DeltaPosition : Float32Array = vec3.create();
 		var Direction : Float32Array;
@@ -648,25 +669,32 @@ class Camera
 	public static Click(leftclick : boolean) : void
 	{
 
-		console.log("click");
+		var b : Block = Terrain.GetBlock(Math.floor(Camera.Position[0]), Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2]));
 
-		if (Terrain.GetBlock(Math.floor(Camera.Position[0]),Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2])) == Block.Air)
+		if (b == Block.Air || b == null)
 		{
 
 			var Accuracy = 0.1;
 
 			var Delta : Float32Array = vec3.fromValues(0, 0, Accuracy);
 
-			vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
-			vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Pitch);
+			var d = mat4.create();
+			var c = mat4.create();
+
+			mat4.fromYRotation(d, -Camera.Yaw + Math.PI);
+			mat4.fromXRotation(c, Camera.Pitch);
+			mat4.multiply(d, d, c);
+
+			vec3.transformMat4(Delta, Delta, d);
+
+			//vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), Camera.Pitch);
+			//vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
 
 			var MaxDistance : number = 10;
 
 			var Distance = 0;
-			var pos : Float32Array = vec3.clone(Camera.Position);
-			var lastpos : Float32Array = vec3.clone(pos);
-
-			console.log(Camera.Yaw / Math.PI);
+			var pos : Float32Array = vec3.fromValues(Camera.Position[0], Camera.Position[1], Camera.Position[2]);
+			var lastpos : Float32Array = vec3.fromValues(Camera.Position[0], Camera.Position[1], Camera.Position[2]);
 
 			while (Distance < MaxDistance)
 			{
@@ -675,36 +703,25 @@ class Camera
 
 				Distance += Accuracy;
 
-				var b : Block = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
+				b = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
 
-				if (b == null) return;
-
-				if (b != Block.Air)
+				if (b != Block.Air && b != null)
 				{
-
-					console.log("break/place");
 
 					// break or place
 
 					if (leftclick) Terrain.SetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]), Block.Air);
-					else Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Block.Stone);
+					else Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Camera.BlockPlace);
 
 					return;
 
 				}
 
-				lastpos = vec3.clone(pos);
+				lastpos = vec3.fromValues(pos[0], pos[1], pos[2]);
 
 			}
 
 		}
-
-	}
-
-	private static Raycast() : void
-	{
-
-
 
 	}
 
@@ -725,6 +742,26 @@ class Camera
 		mat4.perspective(Projection, Math.PI / 2, canvas.width / canvas.height, 0.1, 1000.0);
 
 		mat4.multiply(Camera.ViewProjection, Projection, View);
+
+	}
+
+	public static RenderCrosshair()
+	{
+
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.ONE_MINUS_DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+
+		Camera.CursorShader.Use();
+
+		Camera.CursorShader.UniformInt("Texture", 0);
+		Camera.CursorShader.UniformFloat("Scale", 0.02);
+		Camera.CursorShader.UniformFloat("Aspect", canvas.width / canvas.height);
+
+		Camera.CursorTexture.Use(0);
+
+		Camera.CursorModel.Render(Camera.CursorShader);
+
+		gl.disable(gl.BLEND);
 
 	}
 
@@ -803,6 +840,61 @@ enum Block
 	Stone,
 	Dirt,
 	Grass,
+
+}
+
+class Model // Doesn't do model matrix: Chunk.shader.UniformMat4("Model", this.ModelMatrix);
+{
+
+	private VBO : WebGLBuffer;
+	private VertCount : number;
+	private ModelMatrix : Float32Array;
+
+	public constructor()
+	{
+
+		this.VBO = gl.createBuffer();
+
+	}
+
+	public UpdateMesh(Verticies : number[]) : void
+	{
+
+		this.VertCount = Verticies.length / 8;
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Verticies), gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+	}
+
+	public Render(shad : Shader) : void
+	{
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
+
+		gl.enableVertexAttribArray(shad.PositionLocation);
+		gl.vertexAttribPointer(shad.PositionLocation, 3, gl.FLOAT, false, 32, 0);
+
+		gl.enableVertexAttribArray(shad.NormalLocation);
+		gl.vertexAttribPointer(shad.NormalLocation, 3, gl.FLOAT, false, 32, 12);
+
+		gl.enableVertexAttribArray(shad.UVLocation);
+		gl.vertexAttribPointer(shad.UVLocation, 2, gl.FLOAT, false, 32, 24);
+
+		gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+	}
+
+	public Delete() : void
+	{
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		gl.deleteBuffer(this.VBO);
+
+	}
 
 }
 
@@ -1022,51 +1114,6 @@ class Texture
 	{
 
 		return (a & (a - 1)) == 0;
-
-	}
-
-}
-
-class Dictionary<T, U> // TypeScript generics
-{
-
-	private Keys : T[];
-	private Values : U[];
-
-	constructor()
-	{
-
-		this.Keys = [];
-		this.Values = [];
-
-	}
-
-	Push(NewKey : T, NewValue : U) : void
-	{
-
-		this.Keys.push(NewKey);
-		this.Values.push(NewValue);
-
-	}
-
-	Get(KeyToFind : T) : U
-	{
-
-		for (var i : number = 0; i < this.Keys.length; i++)
-		{
-
-			if (this.Keys[i] == KeyToFind) return this.Values[i];
-
-		}
-
-		return null;
-
-	}
-
-	GetValues() : U[]
-	{
-
-		return this.Values;
 
 	}
 

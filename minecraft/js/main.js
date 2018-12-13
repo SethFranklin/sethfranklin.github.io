@@ -32,6 +32,7 @@ function Update() {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     Terrain.Render();
+    Camera.RenderCrosshair();
 }
 window.onunload = function () {
     Terrain.UnloadAssets();
@@ -47,9 +48,9 @@ window.onkeydown = function (Event) {
 window.onkeyup = function (Event) {
     Input.KeyUpEvent(Event.keyCode);
 };
-window.onclick = function () {
+window.onclick = function (Event) {
     canvas.requestPointerLock();
-    Camera.Click(false);
+    Camera.Click(Event.which != 3);
 };
 window.onmousemove = function (Event) {
     Camera.MouseMove(Event);
@@ -69,7 +70,7 @@ var Terrain = /** @class */ (function () {
         }
     };
     Terrain.Generate = function (Seed1, Seed2) {
-        noise.seed(Seed1);
+        //noise.seed(Seed1);
         Terrain.Chunks = [];
         Terrain.Chunks.length = Terrain.XChunks;
         for (var x = 0; x < Terrain.XChunks; x++) {
@@ -103,18 +104,28 @@ var Terrain = /** @class */ (function () {
         }
     };
     Terrain.GetBlock = function (x, y, z) {
-        if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || z >= Chunk.Height)
+        if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || y >= Chunk.Height)
             return null;
         else
             return Terrain.Chunks[Math.floor(x / Chunk.XWidth)][Math.floor(z / Chunk.ZWidth)].GetBlock(x % Chunk.XWidth, y, z % Chunk.ZWidth);
     };
     Terrain.SetBlock = function (x, y, z, b) {
+        if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || y >= Chunk.Height)
+            return;
         var cx = Math.floor(x / Chunk.XWidth); // chunk x
         var cz = Math.floor(z / Chunk.ZWidth);
         var ox = x % Chunk.XWidth;
         var oz = z % Chunk.ZWidth;
         Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
         Terrain.Chunks[cx][cz].UpdateMesh();
+        if (cx != 0 && ox == 0)
+            Terrain.Chunks[cx - 1][cz].UpdateMesh();
+        if (cx != Terrain.XChunks - 1 && ox == Chunk.XWidth - 1)
+            Terrain.Chunks[cx + 1][cz].UpdateMesh();
+        if (cz != 0 && oz == 0)
+            Terrain.Chunks[cx][cz - 1].UpdateMesh();
+        if (cz != Terrain.ZChunks - 1 && oz == Chunk.ZWidth - 1)
+            Terrain.Chunks[cx][cz + 1].UpdateMesh();
     };
     Terrain.XChunks = 10;
     Terrain.ZChunks = 10;
@@ -152,7 +163,7 @@ var Chunk = /** @class */ (function () {
                 var h = 128 + Math.round(100 * (Math.cos(((Chunk.XWidth * context.XPosition) + x) / (Math.PI * Chunk.XWidth / 4))) * (Math.cos(((Chunk.ZWidth * context.ZPosition) + z) / (Math.PI * Chunk.ZWidth / 4))));
                 GrassCount = 1;
                 DirtCount = 5;
-                while (h > 0) {
+                while (h >= 0) {
                     if (GrassCount > 0) {
                         context.Blocks[x][h][z] = Block.Grass;
                         GrassCount--;
@@ -167,22 +178,21 @@ var Chunk = /** @class */ (function () {
                 }
             }
         }
-        // Initializing Meshes (will be generated later on)
-        this.VBO = gl.createBuffer();
+        this.TerrainModel = new Model();
         this.ModelMatrix = mat4.create();
         mat4.fromTranslation(this.ModelMatrix, vec3.fromValues(this.XPosition * Chunk.XWidth, 0, this.ZPosition * Chunk.ZWidth));
-        Chunk.TopTextures = new Dictionary();
-        Chunk.TopTextures.Push(Block.Stone, 3);
-        Chunk.TopTextures.Push(Block.Dirt, 2);
-        Chunk.TopTextures.Push(Block.Grass, 0);
-        Chunk.BottomTextures = new Dictionary();
-        Chunk.BottomTextures.Push(Block.Stone, 3);
-        Chunk.BottomTextures.Push(Block.Dirt, 2);
-        Chunk.BottomTextures.Push(Block.Grass, 2);
-        Chunk.SideTextures = new Dictionary();
-        Chunk.SideTextures.Push(Block.Stone, 3);
-        Chunk.SideTextures.Push(Block.Dirt, 2);
-        Chunk.SideTextures.Push(Block.Grass, 1);
+        Chunk.TopTextures = {};
+        Chunk.TopTextures[Block.Stone] = 3;
+        Chunk.TopTextures[Block.Dirt] = 2;
+        Chunk.TopTextures[Block.Grass] = 0;
+        Chunk.BottomTextures = {};
+        Chunk.BottomTextures[Block.Stone] = 3;
+        Chunk.BottomTextures[Block.Dirt] = 2;
+        Chunk.BottomTextures[Block.Grass] = 3;
+        Chunk.SideTextures = {};
+        Chunk.SideTextures[Block.Stone] = 3;
+        Chunk.SideTextures[Block.Dirt] = 2;
+        Chunk.SideTextures[Block.Grass] = 1;
     }
     Chunk.LoadAssets = function () {
         Chunk.shader = new Shader("terrain", ["Model", "ViewProjection", "Textures"]);
@@ -204,9 +214,9 @@ var Chunk = /** @class */ (function () {
                 for (var z = 0; z < Chunk.ZWidth; z++) {
                     if (context.Blocks[x][y][z] != Block.Air) // If there's a block there, generate verticies
                      {
-                        var UVOffsetTop = 0.25 * Chunk.TopTextures.Get(context.Blocks[x][y][z]);
-                        var UVOffsetSide = 0.25 * Chunk.SideTextures.Get(context.Blocks[x][y][z]);
-                        var UVOffsetBottom = 0.25 * Chunk.BottomTextures.Get(context.Blocks[x][y][z]);
+                        var UVOffsetTop = 0.25 * Chunk.TopTextures[context.Blocks[x][y][z]];
+                        var UVOffsetSide = 0.25 * Chunk.SideTextures[context.Blocks[x][y][z]];
+                        var UVOffsetBottom = 0.25 * Chunk.BottomTextures[context.Blocks[x][y][z]];
                         if ((y + 1 < Chunk.Height && context.Blocks[x][y + 1][z] == Block.Air) || y == Chunk.Height - 1) // Top face +y
                          {
                             Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.25 + UVOffsetTop, 1.0);
@@ -265,10 +275,7 @@ var Chunk = /** @class */ (function () {
                 }
             }
         }
-        this.VertCount = Verticies.length / 8;
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Verticies), gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        this.TerrainModel.UpdateMesh(Verticies);
     };
     Chunk.prototype.GetBlock = function (x, y, z) {
         return this.Blocks[x][y][z];
@@ -278,19 +285,10 @@ var Chunk = /** @class */ (function () {
     };
     Chunk.prototype.Render = function () {
         Chunk.shader.UniformMat4("Model", this.ModelMatrix);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
-        gl.enableVertexAttribArray(Chunk.shader.PositionLocation);
-        gl.vertexAttribPointer(Chunk.shader.PositionLocation, 3, gl.FLOAT, false, 32, 0);
-        gl.enableVertexAttribArray(Chunk.shader.NormalLocation);
-        gl.vertexAttribPointer(Chunk.shader.NormalLocation, 3, gl.FLOAT, false, 32, 12);
-        gl.enableVertexAttribArray(Chunk.shader.UVLocation);
-        gl.vertexAttribPointer(Chunk.shader.UVLocation, 2, gl.FLOAT, false, 32, 24);
-        gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        this.TerrainModel.Render(Chunk.shader);
     };
     Chunk.prototype.Delete = function () {
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        gl.deleteBuffer(this.VBO);
+        this.TerrainModel.Delete();
     };
     Chunk.XWidth = 16; // X and Z are horizontal axis, Y is vertical
     Chunk.ZWidth = 16;
@@ -301,8 +299,13 @@ var Camera = /** @class */ (function () {
     function Camera() {
     }
     Camera.Generate = function () {
-        this.Position = vec3.create();
-        this.ViewProjection = mat4.create();
+        Camera.Position = vec3.create();
+        Camera.ViewProjection = mat4.create();
+        Camera.BlockPlace = Block.Stone;
+        Camera.CursorTexture = new Texture("cursor", gl.CLAMP_TO_EDGE, gl.NEAREST);
+        Camera.CursorModel = new Model();
+        Camera.CursorModel.UpdateMesh(Camera.CursorData);
+        Camera.CursorShader = new Shader("cursor", ["Textures", "Scale", "Aspect"]);
     };
     Camera.Update = function () {
         //while (Camera.Yaw > Camera.TwoPi) Camera.Yaw -= Camera.TwoPi;
@@ -315,6 +318,12 @@ var Camera = /** @class */ (function () {
             Camera.Position[1] += Camera.Speed * 0.0166667; // space key
         if (Input.IsKeyDown(16))
             Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
+        if (Input.IsKeyDown(49))
+            Camera.BlockPlace = Block.Stone;
+        if (Input.IsKeyDown(50))
+            Camera.BlockPlace = Block.Dirt;
+        if (Input.IsKeyDown(51))
+            Camera.BlockPlace = Block.Grass;
         var DeltaPosition = vec3.create();
         var Direction;
         if (Input.IsKeyDown(87)) // w key
@@ -348,37 +357,37 @@ var Camera = /** @class */ (function () {
         Camera.Pitch += Event.movementY / 1000.0;
     };
     Camera.Click = function (leftclick) {
-        console.log("click");
-        if (Terrain.GetBlock(Math.floor(Camera.Position[0]), Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2])) == Block.Air) {
+        var b = Terrain.GetBlock(Math.floor(Camera.Position[0]), Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2]));
+        if (b == Block.Air || b == null) {
             var Accuracy = 0.1;
             var Delta = vec3.fromValues(0, 0, Accuracy);
-            vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
-            vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Pitch);
+            var d = mat4.create();
+            var c = mat4.create();
+            mat4.fromYRotation(d, -Camera.Yaw + Math.PI);
+            mat4.fromXRotation(c, Camera.Pitch);
+            mat4.multiply(d, d, c);
+            vec3.transformMat4(Delta, Delta, d);
+            //vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), Camera.Pitch);
+            //vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
             var MaxDistance = 10;
             var Distance = 0;
-            var pos = vec3.clone(Camera.Position);
-            var lastpos = vec3.clone(pos);
-            console.log(Camera.Yaw / Math.PI);
+            var pos = vec3.fromValues(Camera.Position[0], Camera.Position[1], Camera.Position[2]);
+            var lastpos = vec3.fromValues(Camera.Position[0], Camera.Position[1], Camera.Position[2]);
             while (Distance < MaxDistance) {
                 vec3.add(pos, pos, Delta);
                 Distance += Accuracy;
-                var b = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
-                if (b == null)
-                    return;
-                if (b != Block.Air) {
-                    console.log("break/place");
+                b = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
+                if (b != Block.Air && b != null) {
                     // break or place
                     if (leftclick)
                         Terrain.SetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]), Block.Air);
                     else
-                        Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Block.Stone);
+                        Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Camera.BlockPlace);
                     return;
                 }
-                lastpos = vec3.clone(pos);
+                lastpos = vec3.fromValues(pos[0], pos[1], pos[2]);
             }
         }
-    };
-    Camera.Raycast = function () {
     };
     Camera.CalculateMatrix = function () {
         var View = mat4.create();
@@ -394,11 +403,30 @@ var Camera = /** @class */ (function () {
         mat4.perspective(Projection, Math.PI / 2, canvas.width / canvas.height, 0.1, 1000.0);
         mat4.multiply(Camera.ViewProjection, Projection, View);
     };
+    Camera.RenderCrosshair = function () {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE_MINUS_DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+        Camera.CursorShader.Use();
+        Camera.CursorShader.UniformInt("Texture", 0);
+        Camera.CursorShader.UniformFloat("Scale", 0.02);
+        Camera.CursorShader.UniformFloat("Aspect", canvas.width / canvas.height);
+        Camera.CursorTexture.Use(0);
+        Camera.CursorModel.Render(Camera.CursorShader);
+        gl.disable(gl.BLEND);
+    };
     Camera.Speed = 20.0;
     Camera.TwoPi = 2.0 * Math.PI;
     Camera.PiOverTwo = Math.PI / 2.0;
     Camera.Yaw = 3 * Math.PI / 4.0;
     Camera.Pitch = 0;
+    Camera.CursorData = [
+        -1, -1, -1, 0, 0, 0, 0, 0,
+        1, -1, -1, 0, 0, 0, 1, 0,
+        1, 1, -1, 0, 0, 0, 1, 1,
+        1, 1, -1, 0, 0, 0, 1, 1,
+        -1, 1, -1, 0, 0, 0, 0, 1,
+        -1, -1, -1, 0, 0, 0, 0, 0,
+    ];
     return Camera;
 }());
 var Input = /** @class */ (function () {
@@ -442,6 +470,34 @@ var Block;
     Block[Block["Dirt"] = 2] = "Dirt";
     Block[Block["Grass"] = 3] = "Grass";
 })(Block || (Block = {}));
+var Model // Doesn't do model matrix: Chunk.shader.UniformMat4("Model", this.ModelMatrix);
+ = /** @class */ (function () {
+    function Model() {
+        this.VBO = gl.createBuffer();
+    }
+    Model.prototype.UpdateMesh = function (Verticies) {
+        this.VertCount = Verticies.length / 8;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Verticies), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    };
+    Model.prototype.Render = function (shad) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
+        gl.enableVertexAttribArray(shad.PositionLocation);
+        gl.vertexAttribPointer(shad.PositionLocation, 3, gl.FLOAT, false, 32, 0);
+        gl.enableVertexAttribArray(shad.NormalLocation);
+        gl.vertexAttribPointer(shad.NormalLocation, 3, gl.FLOAT, false, 32, 12);
+        gl.enableVertexAttribArray(shad.UVLocation);
+        gl.vertexAttribPointer(shad.UVLocation, 2, gl.FLOAT, false, 32, 24);
+        gl.drawArrays(gl.TRIANGLES, 0, this.VertCount);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    };
+    Model.prototype.Delete = function () {
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.deleteBuffer(this.VBO);
+    };
+    return Model;
+}());
 var Shader = /** @class */ (function () {
     function Shader(Name, UniformList) {
         this.UniformMap = {};
@@ -545,27 +601,6 @@ var Texture = /** @class */ (function () {
         return (a & (a - 1)) == 0;
     };
     return Texture;
-}());
-var Dictionary = /** @class */ (function () {
-    function Dictionary() {
-        this.Keys = [];
-        this.Values = [];
-    }
-    Dictionary.prototype.Push = function (NewKey, NewValue) {
-        this.Keys.push(NewKey);
-        this.Values.push(NewValue);
-    };
-    Dictionary.prototype.Get = function (KeyToFind) {
-        for (var i = 0; i < this.Keys.length; i++) {
-            if (this.Keys[i] == KeyToFind)
-                return this.Values[i];
-        }
-        return null;
-    };
-    Dictionary.prototype.GetValues = function () {
-        return this.Values;
-    };
-    return Dictionary;
 }());
 function HTTPRequest(RequestType, URL) {
     return new Promise(function (Resolve, Reject) {
