@@ -20,7 +20,7 @@ window.onload = function () {
     Terrain.Generate(Math.random(), Math.random());
     Camera.Generate();
     Input.Start();
-    Camera.Position = vec3.fromValues(1, 1, 1);
+    Camera.Position = vec3.fromValues(0, 200, 0);
     Int = setInterval(Update, 16.666666667);
 };
 function Update() {
@@ -114,7 +114,7 @@ var Terrain = /** @class */ (function () {
             return;
         var cx = Math.floor(x / Chunk.XWidth); // chunk x
         var cz = Math.floor(z / Chunk.ZWidth);
-        var ox = x % Chunk.XWidth; // block x
+        var ox = x % Chunk.XWidth;
         var oz = z % Chunk.ZWidth;
         Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
         Terrain.Chunks[cx][cz].UpdateMesh();
@@ -357,12 +357,18 @@ var Camera = /** @class */ (function () {
         Camera.Pitch += Event.movementY / 1000.0;
     };
     Camera.Click = function (leftclick) {
-        var b = Terrain.GetBlock(Math.round(Camera.Position[0]), Math.round(Camera.Position[1]), Math.round(Camera.Position[2]));
+        var b = Terrain.GetBlock(Math.floor(Camera.Position[0]), Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2]));
         if (b == Block.Air || b == null) {
             var Accuracy = 0.1;
             var Delta = vec3.fromValues(0, 0, Accuracy);
-            vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), Camera.Pitch);
-            vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
+            var d = mat4.create();
+            var c = mat4.create();
+            mat4.fromYRotation(d, -Camera.Yaw + Math.PI);
+            mat4.fromXRotation(c, Camera.Pitch);
+            mat4.multiply(d, d, c);
+            vec3.transformMat4(Delta, Delta, d);
+            //vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), Camera.Pitch);
+            //vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
             var MaxDistance = 10;
             var Distance = 0;
             var pos = vec3.fromValues(Camera.Position[0], Camera.Position[1], Camera.Position[2]);
@@ -370,13 +376,13 @@ var Camera = /** @class */ (function () {
             while (Distance < MaxDistance) {
                 vec3.add(pos, pos, Delta);
                 Distance += Accuracy;
-                b = Terrain.GetBlock(Math.round(pos[0]), Math.round(pos[1]), Math.round(pos[2]));
+                b = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
                 if (b != Block.Air && b != null) {
                     // break or place
                     if (leftclick)
-                        Terrain.SetBlock(Math.round(pos[0]), Math.round(pos[1]), Math.round(pos[2]), Block.Air);
+                        Terrain.SetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]), Block.Air);
                     else
-                        Terrain.SetBlock(Math.round(lastpos[0]), Math.round(lastpos[1]), Math.round(lastpos[2]), Camera.BlockPlace);
+                        Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Camera.BlockPlace);
                     return;
                 }
                 lastpos = vec3.fromValues(pos[0], pos[1], pos[2]);

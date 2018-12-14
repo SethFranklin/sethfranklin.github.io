@@ -41,7 +41,7 @@ window.onload = function() : void
 
 	Input.Start();
 
-	Camera.Position = vec3.fromValues(75, 200, 110);
+	Camera.Position = vec3.fromValues(1, 1, 1);
 
 	Int = setInterval(Update, 16.666666667);
 
@@ -235,7 +235,7 @@ class Terrain
 		var cx = Math.floor(x / Chunk.XWidth); // chunk x
 		var cz = Math.floor(z / Chunk.ZWidth);
 
-		var ox = x % Chunk.XWidth;
+		var ox = x % Chunk.XWidth; // block x
 		var oz = z % Chunk.ZWidth;
 
 		Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
@@ -669,7 +669,7 @@ class Camera
 	public static Click(leftclick : boolean) : void
 	{
 
-		var b : Block = Terrain.GetBlock(Math.floor(Camera.Position[0]), Math.floor(Camera.Position[1]), Math.floor(Camera.Position[2]));
+		var b : Block = Terrain.GetBlock(Math.round(Camera.Position[0]), Math.round(Camera.Position[1]), Math.round(Camera.Position[2]));
 
 		if (b == Block.Air || b == null)
 		{
@@ -678,17 +678,8 @@ class Camera
 
 			var Delta : Float32Array = vec3.fromValues(0, 0, Accuracy);
 
-			var d = mat4.create();
-			var c = mat4.create();
-
-			mat4.fromYRotation(d, -Camera.Yaw + Math.PI);
-			mat4.fromXRotation(c, Camera.Pitch);
-			mat4.multiply(d, d, c);
-
-			vec3.transformMat4(Delta, Delta, d);
-
-			//vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), Camera.Pitch);
-			//vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
+			vec3.rotateX(Delta, Delta, vec3.fromValues(0, 0, 0), Camera.Pitch);
+			vec3.rotateY(Delta, Delta, vec3.fromValues(0, 0, 0), -Camera.Yaw + Math.PI);
 
 			var MaxDistance : number = 10;
 
@@ -703,15 +694,15 @@ class Camera
 
 				Distance += Accuracy;
 
-				b = Terrain.GetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]));
+				b = Terrain.GetBlock(Math.round(pos[0]), Math.round(pos[1]), Math.round(pos[2]));
 
 				if (b != Block.Air && b != null)
 				{
 
 					// break or place
 
-					if (leftclick) Terrain.SetBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]), Block.Air);
-					else Terrain.SetBlock(Math.floor(lastpos[0]), Math.floor(lastpos[1]), Math.floor(lastpos[2]), Camera.BlockPlace);
+					if (leftclick) Terrain.SetBlock(Math.round(pos[0]), Math.round(pos[1]), Math.round(pos[2]), Block.Air);
+					else Terrain.SetBlock(Math.round(lastpos[0]), Math.round(lastpos[1]), Math.round(lastpos[2]), Camera.BlockPlace);
 
 					return;
 
