@@ -185,14 +185,35 @@ var Chunk = /** @class */ (function () {
         Chunk.TopTextures[Block.Stone] = 3;
         Chunk.TopTextures[Block.Dirt] = 2;
         Chunk.TopTextures[Block.Grass] = 0;
+        Chunk.TopTextures[Block.WoodPlank] = 4;
+        Chunk.TopTextures[Block.WoodLog] = 5;
+        Chunk.TopTextures[Block.Leaves] = 7;
+        Chunk.TopTextures[Block.Bricks] = 8;
+        Chunk.TopTextures[Block.Bookshelf] = 4;
+        Chunk.TopTextures[Block.Netherrack] = 10;
+        Chunk.TopTextures[Block.DiamondBlock] = 11;
         Chunk.BottomTextures = {};
         Chunk.BottomTextures[Block.Stone] = 3;
         Chunk.BottomTextures[Block.Dirt] = 2;
-        Chunk.BottomTextures[Block.Grass] = 3;
+        Chunk.BottomTextures[Block.Grass] = 2;
+        Chunk.BottomTextures[Block.WoodPlank] = 4;
+        Chunk.BottomTextures[Block.WoodLog] = 5;
+        Chunk.BottomTextures[Block.Leaves] = 7;
+        Chunk.BottomTextures[Block.Bricks] = 8;
+        Chunk.BottomTextures[Block.Bookshelf] = 4;
+        Chunk.BottomTextures[Block.Netherrack] = 10;
+        Chunk.BottomTextures[Block.DiamondBlock] = 11;
         Chunk.SideTextures = {};
         Chunk.SideTextures[Block.Stone] = 3;
         Chunk.SideTextures[Block.Dirt] = 2;
         Chunk.SideTextures[Block.Grass] = 1;
+        Chunk.SideTextures[Block.WoodPlank] = 4;
+        Chunk.SideTextures[Block.WoodLog] = 6;
+        Chunk.SideTextures[Block.Leaves] = 7;
+        Chunk.SideTextures[Block.Bricks] = 8;
+        Chunk.SideTextures[Block.Bookshelf] = 9;
+        Chunk.SideTextures[Block.Netherrack] = 10;
+        Chunk.SideTextures[Block.DiamondBlock] = 11;
     }
     Chunk.LoadAssets = function () {
         Chunk.shader = new Shader("terrain", ["Model", "ViewProjection", "Textures"]);
@@ -214,24 +235,24 @@ var Chunk = /** @class */ (function () {
                 for (var z = 0; z < Chunk.ZWidth; z++) {
                     if (context.Blocks[x][y][z] != Block.Air) // If there's a block there, generate verticies
                      {
-                        var UVOffsetTop = 0.25 * Chunk.TopTextures[context.Blocks[x][y][z]];
-                        var UVOffsetSide = 0.25 * Chunk.SideTextures[context.Blocks[x][y][z]];
-                        var UVOffsetBottom = 0.25 * Chunk.BottomTextures[context.Blocks[x][y][z]];
+                        var UVOffsetTop = 0.0625 * Chunk.TopTextures[context.Blocks[x][y][z]];
+                        var UVOffsetSide = 0.0625 * Chunk.SideTextures[context.Blocks[x][y][z]];
+                        var UVOffsetBottom = 0.0625 * Chunk.BottomTextures[context.Blocks[x][y][z]];
                         if ((y + 1 < Chunk.Height && context.Blocks[x][y + 1][z] == Block.Air) || y == Chunk.Height - 1) // Top face +y
                          {
-                            Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.25 + UVOffsetTop, 1.0);
-                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 0.0, 1.0, 0.0, 0.25 + UVOffsetTop, 0.0);
+                            Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.0625 + UVOffsetTop, 1.0);
+                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 0.0, 1.0, 0.0, 0.0625 + UVOffsetTop, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.0 + UVOffsetTop, 1.0);
-                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 0.0, 1.0, 0.0, 0.25 + UVOffsetTop, 0.0);
+                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 0.0, 1.0, 0.0, 0.0625 + UVOffsetTop, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 0.0, 1.0, 0.0, 0.0 + UVOffsetTop, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 1.0, 0.0, 0.0 + UVOffsetTop, 1.0);
                         }
                         if ((y > 0 && context.Blocks[x][y - 1][z] == Block.Air) || y == 0) // Bottom face, -y
                          {
-                            Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, -1.0, 0.0, 0.25 + UVOffsetBottom, 1.0);
+                            Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, -1.0, 0.0, 0.0625 + UVOffsetBottom, 1.0);
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 0.0, -1.0, 0.0, 0.0 + UVOffsetBottom, 1.0);
-                            Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, -1.0, 0.0, 0.25 + UVOffsetBottom, 0.0);
-                            Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, -1.0, 0.0, 0.25 + UVOffsetBottom, 0.0);
+                            Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, -1.0, 0.0, 0.0625 + UVOffsetBottom, 0.0);
+                            Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, -1.0, 0.0, 0.0625 + UVOffsetBottom, 0.0);
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 0.0, -1.0, 0.0, 0.0 + UVOffsetBottom, 1.0);
                             Verticies.push(-0.5 + x, -0.5 + y, -0.5 + z, 0.0, -1.0, 0.0, 0.0 + UVOffsetBottom, 0.0);
                         }
@@ -239,26 +260,26 @@ var Chunk = /** @class */ (function () {
                          {
                             Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 1.0);
-                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 0.0);
-                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 0.0);
+                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0625 + UVOffsetSide, 0.0);
+                            Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0625 + UVOffsetSide, 0.0);
                             Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 1.0);
-                            Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 1.0);
+                            Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0625 + UVOffsetSide, 1.0);
                         }
                         if ((x > 0 && context.Blocks[x - 1][y][z] == Block.Air) || (x == 0 && (XNegChunk == null || XNegChunk.GetBlock(Chunk.XWidth - 1, y, z) == Block.Air))) // -x face
                          {
-                            Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 0.0);
+                            Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0625 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 0.0);
-                            Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 1.0);
+                            Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0625 + UVOffsetSide, 1.0);
                             Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, -0.5 + y, -0.5 + z, 1.0, 0.0, 0.0, 0.0 + UVOffsetSide, 1.0);
-                            Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.25 + UVOffsetSide, 1.0);
+                            Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 1.0, 0.0, 0.0, 0.0625 + UVOffsetSide, 1.0);
                         }
                         if ((z + 1 < Chunk.ZWidth && context.Blocks[x][y][z + 1] == Block.Air) || (z == Chunk.ZWidth - 1 && (ZPosChunk == null || ZPosChunk.GetBlock(x, y, 0) == Block.Air))) // +z face
                          {
-                            Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.25 + UVOffsetSide, 0.0);
+                            Verticies.push(0.5 + x, 0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0625 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0 + UVOffsetSide, 0.0);
-                            Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.25 + UVOffsetSide, 1.0);
-                            Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.25 + UVOffsetSide, 1.0);
+                            Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0625 + UVOffsetSide, 1.0);
+                            Verticies.push(0.5 + x, -0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0625 + UVOffsetSide, 1.0);
                             Verticies.push(-0.5 + x, 0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(-0.5 + x, -0.5 + y, 0.5 + z, 0.0, 0.0, 1.0, 0.0 + UVOffsetSide, 1.0);
                         }
@@ -266,10 +287,10 @@ var Chunk = /** @class */ (function () {
                          {
                             Verticies.push(0.5 + x, 0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0 + UVOffsetSide, 0.0);
                             Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0 + UVOffsetSide, 1.0);
-                            Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.25 + UVOffsetSide, 0.0);
+                            Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0625 + UVOffsetSide, 0.0);
                             Verticies.push(0.5 + x, -0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0 + UVOffsetSide, 1.0);
-                            Verticies.push(-0.5 + x, -0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.25 + UVOffsetSide, 1.0);
-                            Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.25 + UVOffsetSide, 0.0);
+                            Verticies.push(-0.5 + x, -0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0625 + UVOffsetSide, 1.0);
+                            Verticies.push(-0.5 + x, 0.5 + y, -0.5 + z, 0.0, 0.0, -1.0, 0.0625 + UVOffsetSide, 0.0);
                         }
                     }
                 }
@@ -302,6 +323,19 @@ var Camera = /** @class */ (function () {
         Camera.Position = vec3.create();
         Camera.ViewProjection = mat4.create();
         Camera.BlockPlace = Block.Stone;
+        Camera.BlockHand =
+            [
+                Block.Stone,
+                Block.Dirt,
+                Block.Grass,
+                Block.WoodPlank,
+                Block.WoodLog,
+                Block.Leaves,
+                Block.Bricks,
+                Block.Bookshelf,
+                Block.Netherrack,
+                Block.DiamondBlock
+            ];
         Camera.CursorTexture = new Texture("cursor", gl.CLAMP_TO_EDGE, gl.NEAREST);
         Camera.CursorModel = new Model();
         Camera.CursorModel.UpdateMesh(Camera.CursorData);
@@ -318,12 +352,12 @@ var Camera = /** @class */ (function () {
             Camera.Position[1] += Camera.Speed * 0.0166667; // space key
         if (Input.IsKeyDown(16))
             Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
-        if (Input.IsKeyDown(49))
-            Camera.BlockPlace = Block.Stone;
-        if (Input.IsKeyDown(50))
-            Camera.BlockPlace = Block.Dirt;
-        if (Input.IsKeyDown(51))
-            Camera.BlockPlace = Block.Grass;
+        if (Input.IsKeyDown(48))
+            Camera.BlockPlace = Camera.BlockHand[9];
+        for (var i = 49; i <= 57; i++) {
+            if (Input.IsKeyDown(i))
+                Camera.BlockPlace = Camera.BlockHand[i - 49];
+        }
         var DeltaPosition = vec3.create();
         var Direction;
         if (Input.IsKeyDown(87)) // w key
@@ -463,6 +497,13 @@ var Block;
     Block[Block["Stone"] = 1] = "Stone";
     Block[Block["Dirt"] = 2] = "Dirt";
     Block[Block["Grass"] = 3] = "Grass";
+    Block[Block["WoodPlank"] = 4] = "WoodPlank";
+    Block[Block["WoodLog"] = 5] = "WoodLog";
+    Block[Block["Leaves"] = 6] = "Leaves";
+    Block[Block["Bricks"] = 7] = "Bricks";
+    Block[Block["Bookshelf"] = 8] = "Bookshelf";
+    Block[Block["Netherrack"] = 9] = "Netherrack";
+    Block[Block["DiamondBlock"] = 10] = "DiamondBlock";
 })(Block || (Block = {}));
 var Model // Doesn't do model matrix: Chunk.shader.UniformMat4("Model", this.ModelMatrix);
  = /** @class */ (function () {
