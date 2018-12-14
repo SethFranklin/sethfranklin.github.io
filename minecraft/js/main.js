@@ -348,42 +348,44 @@ var Camera = /** @class */ (function () {
             Camera.Pitch = Camera.PiOverTwo;
         else if (Camera.Pitch < -Camera.PiOverTwo)
             Camera.Pitch = -Camera.PiOverTwo;
+        var DeltaPosition = vec3.fromValues(0, 0, 0);
         if (Input.IsKeyDown(32))
-            Camera.Position[1] += Camera.Speed * 0.0166667; // space key
+            vec3.add(DeltaPosition, DeltaPosition, vec3.fromValues(0, 1, 0)); // space key
         if (Input.IsKeyDown(16))
-            Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
+            vec3.add(DeltaPosition, DeltaPosition, vec3.fromValues(0, -1, 0)); // shift key
         if (Input.IsKeyDown(48))
             Camera.BlockPlace = Camera.BlockHand[9];
         for (var i = 49; i <= 57; i++) {
             if (Input.IsKeyDown(i))
                 Camera.BlockPlace = Camera.BlockHand[i - 49];
         }
-        var DeltaPosition = vec3.create();
         var Direction;
         if (Input.IsKeyDown(87)) // w key
          {
-            Direction = vec3.fromValues(0, 0, -Camera.Speed * 0.0166667);
+            Direction = vec3.fromValues(0, 0, -1);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         if (Input.IsKeyDown(83)) // s key
          {
-            Direction = vec3.fromValues(0, 0, Camera.Speed * 0.0166667);
+            Direction = vec3.fromValues(0, 0, 1);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         if (Input.IsKeyDown(68)) // d key
          {
-            Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
+            Direction = vec3.fromValues(1, 0, 0);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
         if (Input.IsKeyDown(65)) // a key
          {
-            Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
+            Direction = vec3.fromValues(-1, 0, 0);
             vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
             vec3.add(DeltaPosition, DeltaPosition, Direction);
         }
+        vec3.normalize(DeltaPosition, DeltaPosition);
+        vec3.scale(DeltaPosition, DeltaPosition, Camera.Speed / 60);
         vec3.add(Camera.Position, Camera.Position, DeltaPosition);
     };
     Camera.MouseMove = function (Event) {
@@ -442,7 +444,7 @@ var Camera = /** @class */ (function () {
         Camera.CursorModel.Render(Camera.CursorShader);
         gl.disable(gl.BLEND);
     };
-    Camera.Speed = 20.0;
+    Camera.Speed = 10.0;
     Camera.TwoPi = 2.0 * Math.PI;
     Camera.PiOverTwo = Math.PI / 2.0;
     Camera.Yaw = 3 * Math.PI / 4.0;

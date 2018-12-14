@@ -574,7 +574,7 @@ class Chunk
 class Camera
 {
 
-	private static Speed : number = 20.0;
+	private static Speed : number = 10.0;
 	private static TwoPi : number = 2.0 * Math.PI;
 	private static PiOverTwo : number = Math.PI / 2.0;
 
@@ -647,8 +647,10 @@ class Camera
 		if (Camera.Pitch > Camera.PiOverTwo) Camera.Pitch = Camera.PiOverTwo;
 		else if (Camera.Pitch < -Camera.PiOverTwo) Camera.Pitch = -Camera.PiOverTwo;
 
-		if (Input.IsKeyDown(32)) Camera.Position[1] += Camera.Speed * 0.0166667; // space key
-		if (Input.IsKeyDown(16)) Camera.Position[1] -= Camera.Speed * 0.0166667; // shift key
+		var DeltaPosition : Float32Array = vec3.fromValues(0, 0, 0);
+
+		if (Input.IsKeyDown(32)) vec3.add(DeltaPosition, DeltaPosition, vec3.fromValues(0, 1, 0)); // space key
+		if (Input.IsKeyDown(16)) vec3.add(DeltaPosition, DeltaPosition, vec3.fromValues(0, -1, 0)); // shift key
 
 		if (Input.IsKeyDown(48)) Camera.BlockPlace = Camera.BlockHand[9];
 
@@ -659,13 +661,12 @@ class Camera
 
 		}
 
-		var DeltaPosition : Float32Array = vec3.create();
 		var Direction : Float32Array;
 
 		if (Input.IsKeyDown(87)) // w key
 		{
 
-			Direction = vec3.fromValues(0, 0, -Camera.Speed * 0.0166667);
+			Direction = vec3.fromValues(0, 0, -1);
 			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 
@@ -674,7 +675,7 @@ class Camera
 		if (Input.IsKeyDown(83)) // s key
 		{
 
-			Direction = vec3.fromValues(0, 0, Camera.Speed * 0.0166667);
+			Direction = vec3.fromValues(0, 0, 1);
 			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 
@@ -683,7 +684,7 @@ class Camera
 		if (Input.IsKeyDown(68)) // d key
 		{
 
-			Direction = vec3.fromValues(Camera.Speed * 0.0166667, 0, 0);
+			Direction = vec3.fromValues(1, 0, 0);
 			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 			
@@ -692,11 +693,14 @@ class Camera
 		if (Input.IsKeyDown(65)) // a key
 		{
 
-			Direction = vec3.fromValues(-Camera.Speed * 0.0166667, 0, 0);
+			Direction = vec3.fromValues(-1, 0, 0);
 			vec3.rotateY(Direction, Direction, vec3.fromValues(0, 0, 0), -Camera.Yaw);
 			vec3.add(DeltaPosition, DeltaPosition, Direction);
 			
 		}
+
+		vec3.normalize(DeltaPosition, DeltaPosition);
+		vec3.scale(DeltaPosition, DeltaPosition, Camera.Speed / 60)
 
 		vec3.add(Camera.Position, Camera.Position, DeltaPosition);
 
