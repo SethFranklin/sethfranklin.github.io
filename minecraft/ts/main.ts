@@ -41,7 +41,7 @@ window.onload = function() : void
 
 	Input.Start();
 
-	Camera.Position = vec3.fromValues(1, 1, 1);
+	Camera.Position = vec3.fromValues(75, 200, 110);
 
 	Int = setInterval(Update, 16.666666667);
 

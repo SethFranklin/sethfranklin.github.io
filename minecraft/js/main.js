@@ -20,7 +20,7 @@ window.onload = function () {
     Terrain.Generate(Math.random(), Math.random());
     Camera.Generate();
     Input.Start();
-    Camera.Position = vec3.fromValues(1, 1, 1);
+    Camera.Position = vec3.fromValues(75, 200, 110);
     Int = setInterval(Update, 16.666666667);
 };
 function Update() {
