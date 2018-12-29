@@ -188,8 +188,6 @@ function update()
 	vx = Math.min(Math.max(-maxspeed, vx), maxspeed);
 	px += vx * dt;
 
-	nx = px;
-
 	bx = Math.max(0, Math.floor(px));
 	tx = Math.min(width, Math.ceil(px + pwidth));
 	by = Math.max(0, Math.floor(oy));
@@ -237,8 +235,6 @@ function update()
 	vy += ay * dt;
 	if (flying) vy = Math.min(Math.max(-maxspeed, vy), maxspeed);
 	py += vy * dt;
-
-	ny = py;
 
 	bx = Math.max(0, Math.floor(ox));
 	tx = Math.min(width, Math.ceil(ox + pwidth));
