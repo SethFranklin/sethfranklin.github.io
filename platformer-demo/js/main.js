@@ -142,8 +142,6 @@ function frame()
 function update()
 {
 
-	console.log(flying);
-
 	flytimer -= dt;
 
 	ox = px;
