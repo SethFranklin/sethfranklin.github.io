@@ -11,8 +11,6 @@ var Octa : Mesh;
 var Teapot : Mesh;
 var Simple : Shader;
 
-var Music : any;
-
 var Shapes : Shape[] = [];
 
 window.onload = function() : void
@@ -50,9 +48,6 @@ window.onload = function() : void
 		else Shapes.push(new Shape(new Float32Array([2.0 * i, 0.0, 0.0]), new Float32Array([a[0],a[1],a[2]]), new Float32Array([0.5, 0.5, 0.5]), Teapot));
 
 	}
-
-	Music = new Audio("../teapot/audio/music.mp3");
-	Music.play();
 
 	Int = setInterval(Update, 0.0166667);
 

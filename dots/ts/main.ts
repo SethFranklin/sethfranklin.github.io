@@ -11,8 +11,6 @@ var Letters : Character[] = [];
 
 var test : Character;
 
-var Music;
-
 var Mouse = vec2.create();
 
 window.onload = function() : void
@@ -53,9 +51,6 @@ window.onload = function() : void
 	Letters.push(new Character("=", vec3.fromValues(0.0, 0.0, -1.0), vec3.fromValues(1.0, 1.0, 0.0)));
 
 	Camera.Position = vec3.fromValues(0.0, 0.0, 3.0);
-
-	Music = new Audio("../dots/audio/music.mp3");
-	Music.play();
 
 	Int = setInterval(Update, 0.0166667);
 

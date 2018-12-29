@@ -3,7 +3,6 @@ var canvas;
 var gl;
 var VBO;
 var Loop;
-var music;
 
 var model;
 var view;
@@ -286,9 +285,6 @@ window.onload = function()
 	projection = mat4.create();
 
 	Mouse = vec2.create();
-
-	music = new Audio('/../arushi/audio/cdplayer.mp3');
-	music.play();
 
 	Loop = setInterval(Render, 16.6666667);
 

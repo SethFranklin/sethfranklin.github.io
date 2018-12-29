@@ -5,7 +5,6 @@ var Int;
 var Octa;
 var Teapot;
 var Simple;
-var Music;
 var Shapes = [];
 window.onload = function () {
     canvas = document.getElementById("canvas"); // <T> is for type conversions
@@ -28,8 +27,6 @@ window.onload = function () {
         else
             Shapes.push(new Shape(new Float32Array([2.0 * i, 0.0, 0.0]), new Float32Array([a[0], a[1], a[2]]), new Float32Array([0.5, 0.5, 0.5]), Teapot));
     }
-    Music = new Audio("../teapot/audio/music.mp3");
-    Music.play();
     Int = setInterval(Update, 0.0166667);
 };
 function hslToRgb(h, s, l) {
@@ -75,7 +72,7 @@ window.onresize = function () {
     canvas.height = window.innerHeight;
     gl.viewport(0, 0, canvas.width, canvas.height);
 };
-var Shape = (function () {
+var Shape = /** @class */ (function () {
     function Shape(npos, ncol, nscale, nmodel) {
         this.Model = nmodel;
         this.Position = npos;
@@ -114,7 +111,7 @@ var Shape = (function () {
     };
     return Shape;
 }());
-var Mesh = (function () {
+var Mesh = /** @class */ (function () {
     function Mesh(Name) {
         var context = this;
         HTTPRequest("GET", window.location.href + "/../obj/" + Name + ".obj").then(function (MeshData) {
@@ -139,7 +136,7 @@ var Mesh = (function () {
     };
     return Mesh;
 }());
-var Shader = (function () {
+var Shader = /** @class */ (function () {
     function Shader(Name, UniformList) {
         var context = this;
         HTTPRequest("GET", window.location.href + "/../glsl/" + Name + ".vert").then(function (VertexSource) {
@@ -202,7 +199,7 @@ var Shader = (function () {
     };
     return Shader;
 }());
-var Dictionary = (function () {
+var Dictionary = /** @class */ (function () {
     function Dictionary() {
         this.Keys = [];
         this.Values = [];
