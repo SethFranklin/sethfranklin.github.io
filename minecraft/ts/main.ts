@@ -41,7 +41,7 @@ window.onload = function() : void
 
 	Input.Start();
 
-	Camera.Position = vec3.fromValues(75, 200, 110);
+	Camera.Position = vec3.fromValues(78.5, 139.6, 78.5);
 
 	Int = setInterval(Update, 16.666666667);
 
@@ -60,7 +60,7 @@ function Update()
 
 	Camera.CalculateMatrix();
 
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clearColor(150 / 255, 166 / 255, 1.0, 1.0); // #96A6FF minecraft sky
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 	Terrain.Render();
@@ -124,6 +124,8 @@ class Terrain
 	public static XChunks : number = 10;
 	public static ZChunks : number = 10;
 
+	private static Trees : number = 10;
+
 	public static LoadAssets() : void
 	{
 
@@ -153,7 +155,7 @@ class Terrain
 	public static Generate(Seed1 : number, Seed2 : number) : void
 	{
 
-		//noise.seed(Seed1);
+		noise.seed(Seed1);
 
 		Terrain.Chunks = [];
 		Terrain.Chunks.length = Terrain.XChunks;
@@ -169,6 +171,64 @@ class Terrain
 
 				Terrain.Chunks[x][z] = new Chunk(x, z, Seed2);
 				
+			}
+
+		}
+
+		for (var i : number = 0; i < Terrain.Trees; i++)
+		{
+
+			var ix : number = Math.floor(Math.random() * Terrain.XChunks * Chunk.XWidth);
+			var iz : number = Math.floor(Math.random() * Terrain.ZChunks * Chunk.ZWidth);
+
+			var iy = -1;
+			var p = 0;
+
+			while (iy == -1)
+			{
+
+				if (Terrain.GetBlock(ix, p, iz) == Block.Air) iy = p;
+				p++;
+				if (p >= Chunk.Height) iy = 0; // shouldn't happen
+
+			}
+
+			var treeheight = 5 + Math.floor(Math.random() * 3)
+
+			for (var y : number = 0; y < treeheight; y++)
+			{
+
+				for (var x : number = -2; x <= 2; x++)
+				{
+
+					for (var z : number = -2; z <= 2; z++)
+					{
+
+						if (x == 0 && z == 0)
+						{
+
+							if (y != treeheight - 1) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.WoodLog);
+							else Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+
+						}
+						else
+						{
+
+							if (y >= treeheight - 3)
+							{
+
+								if (y == treeheight - 3) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+								else if (y == treeheight - 2) if (!(Math.abs(x) == 2 && Math.abs(z) == 2)) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+								else if (y == treeheight - 1 && ((x == 0 && Math.abs(z) == 1) || (z == 0 && Math.abs(x) == 1))) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+
+							}
+
+						}
+						
+					}
+
+				}
+
 			}
 
 		}
@@ -286,8 +346,6 @@ class Chunk
 
 		this.Blocks = [];
 		this.Blocks.length = Chunk.XWidth;
-
-		var Seed = Seed1;
 		var context : Chunk = this;
 
 		for (var x : number = 0; x < Chunk.XWidth; x++) // Initializing blocks
@@ -327,9 +385,9 @@ class Chunk
 			for (var z : number = 0; z < Chunk.ZWidth; z++)
 			{
 
-				//var h = Math.round(noise.perlin2((((Chunk.XWidth * context.XPosition) + x) / XBlocks), ((Chunk.ZWidth * context.ZPosition) * z) / ZBlocks) * 20) + 30;
+				var h = Math.round((noise.simplex2((((Chunk.XWidth * context.XPosition) + x) * 2 / XBlocks), ((Chunk.ZWidth * context.ZPosition) + z) * 2 / ZBlocks)) * 10) + 120;
 
-				var h = 128 + Math.round(100 * (Math.cos(((Chunk.XWidth * context.XPosition) + x) / (Math.PI * Chunk.XWidth / 4))) * (Math.cos(((Chunk.ZWidth * context.ZPosition) + z) / (Math.PI * Chunk.ZWidth / 4))));
+				//var h = 128 + Math.round(10 * (Math.cos(((Chunk.XWidth * context.XPosition) + x) / (Math.PI * Chunk.XWidth / 4))) * (Math.cos(((Chunk.ZWidth * context.ZPosition) + z) / (Math.PI * Chunk.ZWidth / 4))));
 
 				GrassCount = 1;
 				DirtCount = 5;
@@ -584,18 +642,27 @@ class Camera
 	public static OldPosition : Float32Array;
 
 	private static MaxSpeed : number = 5;
-	private static WalkAccel : number = 10;
+	private static WalkAccel : number = 20;
 	private static JumpStrength : number = 400;
-	private static Gravity : number = 10;
-	private static Resistance : number = 2;
+	private static Gravity : number = 15;
+	private static Resistance : number = 5;
 
 	private static Grounded : boolean = false;
 	private static Flying : boolean = false;
 	private static FlyTimer : number = -1;
 	private static FlyWindow : number = 0.4;
 
+	private static Sprinting : boolean = false;
+	private static SprintWalkAccel : number = 40;
+	private static FOV = Math.PI / 2;
+	private static CurrentFOV = Math.PI / 2;
+	private static SprintFOVInc = Math.PI / 8;
+	private static FOVInterpolateRate = 2;
+
 	private static HitboxHeight = 1.8;
 	private static HitboxWidth = 0.6;
+	private static Rounding = 0.0001;
+	private static MaxIters = 20;
 
 	private static HeadOffset = 0.6;
 
@@ -664,6 +731,10 @@ class Camera
 	public static Update() : void
 	{
 
+		var iters : number;
+
+		if (Input.IsKeyPressed(17)) Camera.Sprinting = !Camera.Sprinting;
+
 		if (Camera.Pitch > Camera.PiOverTwo) Camera.Pitch = Camera.PiOverTwo;
 		else if (Camera.Pitch < -Camera.PiOverTwo) Camera.Pitch = -Camera.PiOverTwo;
 
@@ -707,8 +778,8 @@ class Camera
 		if (Camera.Flying)
 		{
 
-			if (Input.IsKeyDown(32)) Camera.Acceleration[1] += Camera.WalkAccel;
-			if (Input.IsKeyDown(16)) Camera.Acceleration[1] -= Camera.WalkAccel;
+			if (Input.IsKeyDown(32)) Camera.Acceleration[1] += Camera.SprintWalkAccel;
+			if (Input.IsKeyDown(16)) Camera.Acceleration[1] -= Camera.SprintWalkAccel;
 
 		}
 		else Camera.Acceleration[1] -= Camera.Gravity;
@@ -752,28 +823,21 @@ class Camera
 			
 		}
 
+		var inter : Float32Array = vec3.create();
+
 		vec3.normalize(HorizontalAccel, HorizontalAccel);
-		vec3.scale(HorizontalAccel, HorizontalAccel, Camera.WalkAccel)
+		
+		if (Camera.Sprinting) vec3.scale(HorizontalAccel, HorizontalAccel, Camera.SprintWalkAccel);
+		else vec3.scale(HorizontalAccel, HorizontalAccel, Camera.WalkAccel);
+
+		vec3.scale(inter, Camera.Velocity, -Camera.Resistance);
+		vec3.add(HorizontalAccel, HorizontalAccel, inter);
+		if (!Camera.Flying) HorizontalAccel[1] = 0;
 
 		vec3.add(Camera.Acceleration, Camera.Acceleration, HorizontalAccel);
 
-		var inter : Float32Array = vec3.create();
-
 		vec3.scale(inter, Camera.Acceleration, Camera.DeltaTime);
 		vec3.add(Camera.Velocity, Camera.Velocity, inter);
-
-		inter = vec3.fromValues(Camera.Velocity[0], 0, Camera.Velocity[2]);
-
-		if (vec3.length(inter) > Camera.MaxSpeed)
-		{
-
-			vec3.normalize(inter, inter);
-			vec3.scale(inter, inter, Camera.MaxSpeed);
-
-		}
-
-		Camera.Velocity[0] = inter[0];
-		Camera.Velocity[2] = inter[2];
 
 		vec3.scale(inter, Camera.Velocity, Camera.DeltaTime);
 		vec3.add(Camera.Position, Camera.Position, inter);
@@ -800,14 +864,18 @@ class Camera
 			{
 
 				dd = -1;
-				Camera.Position[0] = Math.round(Camera.Position[0] + (Camera.HitboxWidth / 2)) - ((Camera.HitboxWidth + 1) / 2);
+				Camera.Position[0] = Math.round(Camera.Position[0] + (Camera.HitboxWidth / 2)) - ((Camera.HitboxWidth + 1) / 2) - Camera.Rounding;
+
+				Camera.Sprinting = false;
 
 			}
 			else
 			{
 
 				dd = 1;
-				Camera.Position[0] = Math.round(Camera.Position[0] - (Camera.HitboxWidth / 2)) + ((Camera.HitboxWidth + 1) / 2);
+				Camera.Position[0] = Math.round(Camera.Position[0] - (Camera.HitboxWidth / 2)) + ((Camera.HitboxWidth + 1) / 2) + Camera.Rounding;
+
+				Camera.Sprinting = false;
 
 			}
 
@@ -816,7 +884,9 @@ class Camera
 
 			loop = Camera.Collision(bx, tx, by, ty, bz, tz);
 
-			while (loop)
+			iters = Camera.MaxIters - 2;
+
+			while (loop && iters > 0)
 			{
 
 				Camera.Position[0] += dd;
@@ -825,6 +895,8 @@ class Camera
 				tx += dd;
 
 				loop = Camera.Collision(bx, tx, by, ty, bz, tz);
+
+				iters--;
 
 			}
 
@@ -848,14 +920,14 @@ class Camera
 			{
 
 				dd = -1;
-				Camera.Position[1] = Math.round(Camera.Position[1] + (Camera.HitboxHeight / 2)) - ((Camera.HitboxHeight + 1) / 2);
+				Camera.Position[1] = Math.round(Camera.Position[1] + (Camera.HitboxHeight / 2)) - ((Camera.HitboxHeight + 1) / 2) - Camera.Rounding;
 
 			}
 			else
 			{
 
 				dd = 1;
-				Camera.Position[1] = Math.round(Camera.Position[1] - (Camera.HitboxHeight / 2)) + ((Camera.HitboxHeight + 1) / 2);
+				Camera.Position[1] = Math.round(Camera.Position[1] - (Camera.HitboxHeight / 2)) + ((Camera.HitboxHeight + 1) / 2) + Camera.Rounding;
 
 				Camera.Grounded = true;
 				Camera.Flying = false;
@@ -867,7 +939,9 @@ class Camera
 
 			loop = Camera.Collision(bx, tx, by, ty, bz, tz);
 
-			while (loop)
+			iters = Camera.MaxIters - 2;
+
+			while (loop && iters > 0)
 			{
 
 				Camera.Position[1] += dd;
@@ -876,6 +950,8 @@ class Camera
 				ty += dd;
 
 				loop = Camera.Collision(bx, tx, by, ty, bz, tz);
+
+				iters--;
 
 			}
 
@@ -899,14 +975,18 @@ class Camera
 			{
 
 				dd = -1;
-				Camera.Position[2] = Math.round(Camera.Position[2] + (Camera.HitboxWidth / 2)) - ((Camera.HitboxWidth + 1) / 2);
+				Camera.Position[2] = Math.round(Camera.Position[2] + (Camera.HitboxWidth / 2)) - ((Camera.HitboxWidth + 1) / 2) - Camera.Rounding;
+
+				Camera.Sprinting = false;
 
 			}
 			else
 			{
 
 				dd = 1;
-				Camera.Position[2] = Math.round(Camera.Position[2] - (Camera.HitboxWidth / 2)) + ((Camera.HitboxWidth + 1) / 2);
+				Camera.Position[2] = Math.round(Camera.Position[2] - (Camera.HitboxWidth / 2)) + ((Camera.HitboxWidth + 1) / 2) + Camera.Rounding;
+
+				Camera.Sprinting = false;
 
 			}
 
@@ -915,7 +995,9 @@ class Camera
 
 			loop = Camera.Collision(bx, tx, by, ty, bz, tz);
 
-			while (loop)
+			iters = Camera.MaxIters - 2;
+
+			while (loop && iters > 0)
 			{
 
 				Camera.Position[2] += dd;
@@ -925,11 +1007,16 @@ class Camera
 
 				loop = Camera.Collision(bx, tx, by, ty, bz, tz);
 
+				iters--;
+
 			}
 
 			Camera.Velocity[2] = 0;
 
 		}
+
+		if (Camera.Sprinting) Camera.CurrentFOV = Math.min(Camera.FOV + Camera.SprintFOVInc, Camera.CurrentFOV + (Camera.DeltaTime * Camera.FOVInterpolateRate));
+		else Camera.CurrentFOV = Math.max(Camera.FOV, Camera.CurrentFOV - (Camera.DeltaTime * Camera.FOVInterpolateRate));
 
 	}
 
@@ -1001,7 +1088,25 @@ class Camera
 					// break or place
 
 					if (leftclick) Terrain.SetBlock(Math.round(pos[0]), Math.round(pos[1]), Math.round(pos[2]), Block.Air);
-					else Terrain.SetBlock(Math.round(lastpos[0]), Math.round(lastpos[1]), Math.round(lastpos[2]), Camera.BlockPlace);
+					else
+					{
+
+						var u = Math.round(lastpos[0]);
+						var v = Math.round(lastpos[1]);
+						var w = Math.round(lastpos[2]);
+
+						var bx, tx, by, ty, bz, tz;
+
+						bx = Math.max(0, Math.round(Camera.Position[0] - (Camera.HitboxWidth / 2)));
+						tx = Math.min((Terrain.XChunks * Chunk.XWidth) - 1, Math.round(Camera.Position[0] + (Camera.HitboxWidth / 2)));
+						by = Math.max(0, Math.round(Camera.Position[1] - (Camera.HitboxHeight / 2)));
+						ty = Math.min(Chunk.Height - 1, Math.round(Camera.Position[1] + (Camera.HitboxHeight / 2)));
+						bz = Math.max(0, Math.round(Camera.Position[2] - (Camera.HitboxWidth / 2)));
+						tz = Math.min((Terrain.ZChunks * Chunk.ZWidth) - 1, Math.round(Camera.Position[2] + (Camera.HitboxWidth / 2)));
+
+						if (!(u >= bx && u <= tx && v >= by && v <= ty && w >= bz && w <= tz)) Terrain.SetBlock(u, v, w, Camera.BlockPlace);
+
+					}
 
 					return;
 
@@ -1029,7 +1134,7 @@ class Camera
 		mat4.multiply(b, c, b);
 		mat4.fromTranslation(a, vec3.fromValues(-Camera.Position[0], -Camera.Position[1] - Camera.HeadOffset, -Camera.Position[2]));
 		mat4.multiply(View, b, a);
-		mat4.perspective(Projection, Math.PI / 2, canvas.width / canvas.height, 0.01, 1000.0);
+		mat4.perspective(Projection, Camera.CurrentFOV, canvas.width / canvas.height, 0.01, 1000.0);
 
 		mat4.multiply(Camera.ViewProjection, Projection, View);
 

@@ -40,6 +40,20 @@ var raydistance = 10;
 var invmag;
 var light;
 
+var tilex;
+var tiley;
+
+var stepx;
+var stepy;
+
+var rayx;
+var rayy;
+
+var intx;
+var inty;
+
+var hit;
+
 window.onload = function()
 {
 
@@ -208,59 +222,127 @@ function update()
 	for (var i = 0; i < canvas.width; i++)
 	{
 
+		if (i != 0) break;
+
 		angle = yaw + (-fov / 2) + (i * fov / (canvas.width - 1));
 
-		dx = Math.cos(angle) * raydistance;
-		dy = Math.sin(angle) * raydistance;
+		intx = Math.floor(xpos);
+		inty = Math.floor(ypos);
 
-		stepx = Math.abs(dx); // dy is 1
-		stepy = Math.abs(dy); // dx is 1
+		dx = xpos - intx;
+		dy = ypos - inty;
 
-		dx = dx / stepy;
-		dy = dy / stepx;
-
-		mx = 0;
-		my = 0;
-
-		if (dx > 0)
+		if (Math.cos(angle) > 0)
 		{
 
-			nx = 1;
+			tilex = 1;
+			intx++;
 
 		}
-		else
+		else tilex = -1;
+
+		if (Math.sin(angle) > 0)
 		{
 
-			nx = -1;
+			tiley = 1;
+			inty++;
 
 		}
+		else tiley = -1;
 
-		ia = 1;
+		stepx = Math.tan(angle);
+		stepy = 1 / stepx;
 
-		while (ia <= step)
+		rayx = intx + dx - (dy / stepx);
+		rayy = inty + dy + (dx / stepx);
+
+		hit = false;
+
+		while (!hit)
 		{
 
-			if (data[(height * Math.floor(ix)) + Math.floor(iy)])
+			if (stepx > 0)
 			{
 
-				invmag = 1 / Math.sqrt((mx * mx) + (my * my));
-				light = Math.min(Math.round(invmag * 256), 256);
+				while (!hit && rayy < inty)
+				{
 
-				ctx.beginPath();
-				ctx.moveTo(i, hovertwo + (hovertwo * invmag));
-				ctx.lineTo(i, hovertwo - (hovertwo * invmag));
-				ctx.strokeStyle = "rgb(" + light + "," + light + "," + light + ")";
-				ctx.stroke();
+					if (intx < 0 || intx >= width || rayy <= 0 || rayy >= height)
+					{
 
-				break;
+						hit = true;
+						break;
+
+					}
+
+					if (data[(height * intx) + Math.floor(rayy)]) hitresponse(intx, rayy, 0, 0, i);
+
+					intx += tilex;
+					rayy += stepy;
+
+				}
+
+				while (!hit && rayx < intx)
+				{
+
+					if (rayx <= 0 || rayx >= width || inty < 0 || inty >= height)
+					{
+
+						hit = true;
+						break;
+
+					}
+
+					if (data[(height * Math.floor(rayx)) + inty]) hitresponse(rayx, inty, 0, 0, i);
+
+					inty += tiley;
+					rayx += stepx;
+
+				}
 
 			}
+			else
+			{
 
-			ix += dx;
-			iy += dy;
-			mx += dx;
-			my += dy;
-			ia += 1;
+				console.log(rayx, inty);
+
+				while (!hit && rayy > inty)
+				{
+
+					if (intx < 0 || intx >= width || rayy <= 0 || rayy >= height)
+					{
+
+						hit = true;
+						break;
+
+					}
+
+					if (data[(height * intx) + Math.floor(rayy)]) hitresponse(intx, rayy, 0, 0, i);
+
+					intx += tilex;
+					rayy += stepy;
+
+				}
+
+				while (!hit && rayx > intx)
+				{
+
+					if (rayx <= 0 || rayx >= width || inty < 0 || inty >= height)
+					{
+
+						hit = true;
+						break;
+
+					}
+
+					if (data[(height * Math.floor(rayx)) + inty]) hitresponse(rayx, inty, 0, 0, i);
+
+					inty += tiley;
+					rayx += stepx;
+
+				}
+
+			}
 
 		}
 
@@ -297,7 +379,32 @@ function update()
 		ctx.strokeStyle = "#000000";
 		ctx.stroke();
 
+		ctx.beginPath();
+		ctx.moveTo(xpos * topwidth, ypos * topwidth);
+		ctx.lineTo((xpos * topwidth) + (Math.cos(yaw - (Math.PI / 4)) * 200), (ypos * topwidth) + (Math.sin(yaw - (Math.PI / 4)) * 200));
+		ctx.strokeStyle = "#ff0000";
+		ctx.stroke();
+
 	}
+
+}
+
+function hitresponse(px, py, nx, ny, screenx) // hit pos, normal, screen x
+{
+
+	dx = px - xpos;
+	dy = py - ypos;
+
+	invmag = 1 / Math.sqrt((dx * dx) + (dy * dy));
+	light = Math.min(Math.round(invmag * 256), 256);
+
+	ctx.beginPath();
+	ctx.moveTo(screenx, hovertwo + (hovertwo * invmag));
+	ctx.lineTo(screenx, hovertwo - (hovertwo * invmag));
+	ctx.strokeStyle = "#ffffff";//"rgb(" + light + "," + light + "," + light + ")";
+	ctx.stroke();
+
+	hit = true;
 
 }
 
