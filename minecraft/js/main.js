@@ -98,19 +98,19 @@ var Terrain = /** @class */ (function () {
                     for (var z = -2; z <= 2; z++) {
                         if (x == 0 && z == 0) {
                             if (y != treeheight - 1)
-                                Terrain.SetBlock(ix + x, iy + y, iz + z, Block.WoodLog);
+                                Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.WoodLog);
                             else
-                                Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+                                Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
                         }
                         else {
                             if (y >= treeheight - 3) {
                                 if (y == treeheight - 3)
-                                    Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+                                    Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
                                 else if (y == treeheight - 2)
                                     if (!(Math.abs(x) == 2 && Math.abs(z) == 2))
-                                        Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+                                        Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
                                     else if (y == treeheight - 1 && ((x == 0 && Math.abs(z) == 1) || (z == 0 && Math.abs(x) == 1)))
-                                        Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+                                        Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
                             }
                         }
                     }
@@ -164,9 +164,18 @@ var Terrain = /** @class */ (function () {
         if (cz != Terrain.ZChunks - 1 && oz == Chunk.ZWidth - 1)
             Terrain.Chunks[cx][cz + 1].UpdateMesh();
     };
+    Terrain.SetBlockNoUpdate = function (x, y, z, b) {
+        if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || y >= Chunk.Height)
+            return;
+        var cx = Math.floor(x / Chunk.XWidth); // chunk x
+        var cz = Math.floor(z / Chunk.ZWidth);
+        var ox = x % Chunk.XWidth; // block x
+        var oz = z % Chunk.ZWidth;
+        Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
+    };
     Terrain.XChunks = 10;
     Terrain.ZChunks = 10;
-    Terrain.Trees = 10;
+    Terrain.Trees = 50;
     return Terrain;
 }());
 var Chunk = /** @class */ (function () {

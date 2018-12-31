@@ -124,7 +124,7 @@ class Terrain
 	public static XChunks : number = 10;
 	public static ZChunks : number = 10;
 
-	private static Trees : number = 10;
+	private static Trees : number = 50;
 
 	public static LoadAssets() : void
 	{
@@ -207,8 +207,8 @@ class Terrain
 						if (x == 0 && z == 0)
 						{
 
-							if (y != treeheight - 1) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.WoodLog);
-							else Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+							if (y != treeheight - 1) Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.WoodLog);
+							else Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
 
 						}
 						else
@@ -217,9 +217,9 @@ class Terrain
 							if (y >= treeheight - 3)
 							{
 
-								if (y == treeheight - 3) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
-								else if (y == treeheight - 2) if (!(Math.abs(x) == 2 && Math.abs(z) == 2)) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
-								else if (y == treeheight - 1 && ((x == 0 && Math.abs(z) == 1) || (z == 0 && Math.abs(x) == 1))) Terrain.SetBlock(ix + x, iy + y, iz + z, Block.Leaves);
+								if (y == treeheight - 3) Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
+								else if (y == treeheight - 2) if (!(Math.abs(x) == 2 && Math.abs(z) == 2)) Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
+								else if (y == treeheight - 1 && ((x == 0 && Math.abs(z) == 1) || (z == 0 && Math.abs(x) == 1))) Terrain.SetBlockNoUpdate(ix + x, iy + y, iz + z, Block.Leaves);
 
 							}
 
@@ -307,6 +307,21 @@ class Terrain
 
 		if (cz != 0 && oz == 0) Terrain.Chunks[cx][cz - 1].UpdateMesh();
 		if (cz != Terrain.ZChunks - 1 && oz == Chunk.ZWidth - 1) Terrain.Chunks[cx][cz + 1].UpdateMesh();
+
+	}
+
+	public static SetBlockNoUpdate(x : number, y : number , z : number, b : Block) : void
+	{
+
+		if (x < 0 || y < 0 || z < 0 || x >= Terrain.XChunks * Chunk.XWidth || z >= Terrain.ZChunks * Chunk.ZWidth || y >= Chunk.Height) return;
+
+		var cx = Math.floor(x / Chunk.XWidth); // chunk x
+		var cz = Math.floor(z / Chunk.ZWidth);
+
+		var ox = x % Chunk.XWidth; // block x
+		var oz = z % Chunk.ZWidth;
+
+		Terrain.Chunks[cx][cz].SetBlock(ox, y, oz, b);
 
 	}
 
