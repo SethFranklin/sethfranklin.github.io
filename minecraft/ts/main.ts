@@ -41,7 +41,28 @@ window.onload = function() : void
 
 	Input.Start();
 
-	Camera.Position = vec3.fromValues(78.5, 139.6, 78.5);
+	var a = 78;
+	var b = -1;
+	var c = 0;
+	var d = Math.round(a);
+
+	while (b == -1)
+	{
+
+		if (Terrain.GetBlock(d, c, d) == Block.Air)
+		{
+
+			if (Terrain.GetBlock(d, c + 1, d) == Block.Air) b = c;
+			else c++;
+
+		}
+
+		c++;
+		if (c >= Chunk.Height - 1) b = 0;
+
+	}
+
+	Camera.Position = vec3.fromValues(a, b + ((Camera.HitboxHeight - 1) / 2), a);
 
 	Int = setInterval(Update, 16.666666667);
 
@@ -60,8 +81,10 @@ function Update()
 
 	Camera.CalculateMatrix();
 
-	gl.clearColor(150 / 255, 166 / 255, 1.0, 1.0); // #96A6FF minecraft sky
+	gl.clearColor(0.0, 0.0, 0.0, 1.0); // #96A6FF minecraft sky
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	Camera.RenderSky();
 
 	Terrain.Render();
 
@@ -674,14 +697,14 @@ class Camera
 	private static SprintFOVInc = Math.PI / 8;
 	private static FOVInterpolateRate = 2;
 
-	private static HitboxHeight = 1.8;
-	private static HitboxWidth = 0.6;
+	public static HitboxHeight = 1.8;
+	public static HitboxWidth = 0.6;
 	private static Rounding = 0.0001;
 	private static MaxIters = 20;
 
 	private static HeadOffset = 0.6;
 
-	public static Yaw : number = 3 * Math.PI / 4.0;
+	public static Yaw : number = 0;
 	public static Pitch : number = 0;
 
 	public static ViewProjection : Float32Array;
@@ -689,6 +712,8 @@ class Camera
 	private static CursorTexture : Texture;
 	private static CursorModel : Model;
 	public static CursorShader : Shader;
+
+	private static SkyShader : Shader;
 
 	private static BlockPlace : Block;
 
@@ -741,6 +766,8 @@ class Camera
 		Camera.CursorModel.UpdateMesh(Camera.CursorData);
 		Camera.CursorShader = new Shader("cursor", ["Textures", "Scale", "Aspect"]);
 
+		Camera.SkyShader = new Shader("sky", ["Pitch", "SkyColor", "HorizonColor", "AngleRange", "VFOV"]);
+
 	}
 
 	public static Update() : void
@@ -786,7 +813,13 @@ class Camera
 
 			}
 
-			if (Camera.Grounded) Camera.Acceleration[1] += Camera.JumpStrength;
+			if (Camera.Grounded)
+			{
+
+				Camera.Acceleration[1] += Camera.JumpStrength;
+				Camera.Grounded = false;
+
+			}
 
 		}
 
@@ -1172,6 +1205,21 @@ class Camera
 		Camera.CursorModel.Render(Camera.CursorShader);
 
 		gl.disable(gl.BLEND);
+
+	}
+
+	public static RenderSky()
+	{
+
+		Camera.SkyShader.Use();
+
+		Camera.SkyShader.UniformFloat("Pitch", Camera.Pitch);
+		Camera.SkyShader.UniformVec3("SkyColor", vec3.fromValues(153 / 255, 166 / 255, 1));
+		Camera.SkyShader.UniformVec3("HorizonColor", vec3.fromValues(177 / 255, 198 / 255, 1));
+		Camera.SkyShader.UniformVec2("AngleRange", vec2.fromValues(0, 0.4));
+		Camera.SkyShader.UniformFloat("VFOV", Math.atan(Math.tan(Camera.CurrentFOV / 2) * canvas.width / canvas.height));
+
+		Camera.CursorModel.Render(Camera.SkyShader);
 
 	}
 

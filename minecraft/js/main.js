@@ -20,7 +20,22 @@ window.onload = function () {
     Terrain.Generate(Math.random(), Math.random());
     Camera.Generate();
     Input.Start();
-    Camera.Position = vec3.fromValues(78.5, 139.6, 78.5);
+    var a = 78;
+    var b = -1;
+    var c = 0;
+    var d = Math.round(a);
+    while (b == -1) {
+        if (Terrain.GetBlock(d, c, d) == Block.Air) {
+            if (Terrain.GetBlock(d, c + 1, d) == Block.Air)
+                b = c;
+            else
+                c++;
+        }
+        c++;
+        if (c >= Chunk.Height - 1)
+            b = 0;
+    }
+    Camera.Position = vec3.fromValues(a, b + ((Camera.HitboxHeight - 1) / 2), a);
     Int = setInterval(Update, 16.666666667);
 };
 function Update() {
@@ -29,8 +44,9 @@ function Update() {
     // End of Update, render
     Input.PushBackInputs();
     Camera.CalculateMatrix();
-    gl.clearColor(150 / 255, 166 / 255, 1.0, 1.0); // #96A6FF minecraft sky
+    gl.clearColor(0.0, 0.0, 0.0, 1.0); // #96A6FF minecraft sky
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    Camera.RenderSky();
     Terrain.Render();
     Camera.RenderCrosshair();
 }
@@ -388,6 +404,7 @@ var Camera = /** @class */ (function () {
         Camera.CursorModel = new Model();
         Camera.CursorModel.UpdateMesh(Camera.CursorData);
         Camera.CursorShader = new Shader("cursor", ["Textures", "Scale", "Aspect"]);
+        Camera.SkyShader = new Shader("sky", ["Pitch", "SkyColor", "HorizonColor", "AngleRange", "VFOV"]);
     };
     Camera.Update = function () {
         var iters;
@@ -415,8 +432,10 @@ var Camera = /** @class */ (function () {
             else {
                 Camera.FlyTimer = Camera.FlyWindow;
             }
-            if (Camera.Grounded)
+            if (Camera.Grounded) {
                 Camera.Acceleration[1] += Camera.JumpStrength;
+                Camera.Grounded = false;
+            }
         }
         if (Camera.Flying) {
             if (Input.IsKeyDown(32))
@@ -648,6 +667,15 @@ var Camera = /** @class */ (function () {
         Camera.CursorModel.Render(Camera.CursorShader);
         gl.disable(gl.BLEND);
     };
+    Camera.RenderSky = function () {
+        Camera.SkyShader.Use();
+        Camera.SkyShader.UniformFloat("Pitch", Camera.Pitch);
+        Camera.SkyShader.UniformVec3("SkyColor", vec3.fromValues(153 / 255, 166 / 255, 1));
+        Camera.SkyShader.UniformVec3("HorizonColor", vec3.fromValues(177 / 255, 198 / 255, 1));
+        Camera.SkyShader.UniformVec2("AngleRange", vec2.fromValues(0, 0.4));
+        Camera.SkyShader.UniformFloat("VFOV", Math.atan(Math.tan(Camera.CurrentFOV / 2) * canvas.width / canvas.height));
+        Camera.CursorModel.Render(Camera.SkyShader);
+    };
     Camera.TwoPi = 2.0 * Math.PI;
     Camera.PiOverTwo = Math.PI / 2.0;
     Camera.MaxSpeed = 5;
@@ -670,7 +698,7 @@ var Camera = /** @class */ (function () {
     Camera.Rounding = 0.0001;
     Camera.MaxIters = 20;
     Camera.HeadOffset = 0.6;
-    Camera.Yaw = 3 * Math.PI / 4.0;
+    Camera.Yaw = 0;
     Camera.Pitch = 0;
     Camera.DeltaTime = 0.0166666667;
     Camera.CursorData = [
