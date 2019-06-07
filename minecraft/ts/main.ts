@@ -41,7 +41,7 @@ window.onload = function() : void
 
 	Input.Start();
 
-	var a = 78;
+	var a = 78
 	var b = -1;
 	var c = 0;
 	var d = Math.round(a);

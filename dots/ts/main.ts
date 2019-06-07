@@ -40,13 +40,13 @@ window.onload = function() : void
 
 	gl.viewport(0, 0, canvas.width, canvas.height);
 
-	Letters.push(new Character("e", vec3.fromValues(-1.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
-	Letters.push(new Character("z", vec3.fromValues(-1.0, 0.0, 0.0), vec3.fromValues(1.0, 0.0, 0.0)));
-	Letters.push(new Character("-", vec3.fromValues(-0.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
-	Letters.push(new Character("p", vec3.fromValues(0.0, 0.0, 0.0), vec3.fromValues(1.0, 0.0, 0.0)));
-	Letters.push(new Character("z", vec3.fromValues(0.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
-	Letters.push(new Character("+", vec3.fromValues(1.0, 0.0, 0.0), vec3.fromValues(1.0, 0.0, 0.0)));
-	Letters.push(new Character("+", vec3.fromValues(1.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
+	Letters.push(new Character("d", vec3.fromValues(-1.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
+	Letters.push(new Character("o", vec3.fromValues(-1.0, 0.0, 0.0), vec3.fromValues(1.0, 0.0, 0.0)));
+	Letters.push(new Character("t", vec3.fromValues(-0.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
+	Letters.push(new Character("s", vec3.fromValues(0.0, 0.0, 0.0), vec3.fromValues(1.0, 0.0, 0.0)));
+	Letters.push(new Character("t", vec3.fromValues(0.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
+	Letters.push(new Character("o", vec3.fromValues(1.0, 0.0, 0.0), vec3.fromValues(1.0, 0.0, 0.0)));
+	Letters.push(new Character("d", vec3.fromValues(1.5, 0.0, 0.0), vec3.fromValues(1.0, 1.0, 1.0)));
 
 	Letters.push(new Character("=", vec3.fromValues(0.0, 0.0, -1.0), vec3.fromValues(1.0, 1.0, 0.0)));
 
